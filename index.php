@@ -1,14 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
+<?php
+/**
+ * SIPUS - Entry point.
+ * Redirect ke dashboard sesuai status & role session, atau ke login.
+ */
+declare(strict_types=1);
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-<body>
-  <h1>Nabila</h1>
-</body>
+// Belum login -> halaman login
+if (!isset($_SESSION['role'])) {
+    header('Location: login.php');
+    exit;
+}
 
-</html>
+// Sudah login -> dashboard sesuai role
+header('Location: ' . ($_SESSION['role'] === 'admin' ? 'admin/dashboard.php' : 'siswa/dashboard.php'));
+exit;
