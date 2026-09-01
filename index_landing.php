@@ -26,7 +26,7 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 20px 50px;
+        padding: 5px 50px;
         background: rgba(255, 255, 255, 0.75);
         backdrop-filter: blur(6px);
         position: sticky;
@@ -74,9 +74,9 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
     .hero {
         position: relative;
         background: linear-gradient(rgba(173, 209, 245, 0.72), rgba(200, 224, 250, 0.8)),
-                    url('assets/img/hero-sekolah.jpg') no-repeat center center;
+                    url('images/background.jpeg') no-repeat center center;
         background-size: cover;
-        padding: 130px 20px 100px;
+        padding: 100px 20px 100px;
         text-align: center;
     }
 
@@ -213,6 +213,7 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         </div>
     </nav>
 
+    <!-- Hero -->
     <section class="hero">
         <div class="hero-content">
             <span class="badge">SMK N 1 Giritontro</span>
