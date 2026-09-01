@@ -78,10 +78,15 @@ $keyword = trim((string) ($_GET['q'] ?? ''));
 if ($keyword !== '') {
     $safeKeyword = addcslashes($keyword, '%_\\');
     $stmt = $pdo->prepare('SELECT * FROM buku
-                           WHERE judul LIKE :kw OR penulis LIKE :kw OR penerbit LIKE :kw OR nomor_buku LIKE :kw
+                           WHERE judul LIKE :kw1 OR penulis LIKE :kw2 OR penerbit LIKE :kw3 OR nomor_buku LIKE :kw4
                            ORDER BY status = "tersedia" DESC, judul ASC
                            LIMIT 100');
-    $stmt->execute([':kw' => '%' . $safeKeyword . '%']);
+    $stmt->execute([
+        ':kw1' => '%' . $safeKeyword . '%',
+        ':kw2' => '%' . $safeKeyword . '%',
+        ':kw3' => '%' . $safeKeyword . '%',
+        ':kw4' => '%' . $safeKeyword . '%',
+    ]);
 } else {
     $stmt = $pdo->prepare('SELECT * FROM buku ORDER BY status = "tersedia" DESC, judul ASC LIMIT 100');
     $stmt->execute();
