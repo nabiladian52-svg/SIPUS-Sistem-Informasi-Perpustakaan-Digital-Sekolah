@@ -2,6 +2,7 @@
 /**
  * SIPUS - Daftar Buku (Siswa).
  * List buku + pencarian + tombol pinjam (langsung) via transaksi PDO.
+ * Ditambahkan: informasi stok per buku.
  */
 declare(strict_types=1);
 
@@ -138,6 +139,7 @@ $daftarBuku = $stmt->fetchAll();
       <p class="mt-0.5 text-xs text-slate-400">
         <?= e($buku['penerbit'] ?? '—') ?><?= $buku['tahun_terbit'] ? ' &middot; ' . e($buku['tahun_terbit']) : '' ?>
       </p>
+      <p class="mt-0.5 text-xs text-slate-400">Stok: <?= e((string) ($buku['stok'] ?? 0)) ?></p>
 
       <div class="mt-4 flex gap-2 border-t border-slate-100 pt-4">
         <a href="detail_buku.php?id=<?= (int) $buku['id_buku'] ?>"

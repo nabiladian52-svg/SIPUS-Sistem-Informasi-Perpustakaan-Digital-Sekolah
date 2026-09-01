@@ -2,6 +2,7 @@
 /**
  * SIPUS - CRUD Data Buku (Admin).
  * Fitur: tambah, edit, hapus, pencarian + sanitasi & validasi input.
+ * Ditambahkan: fitur stok per buku (dibatasi maksimum STOK_MAX).
  */
 declare(strict_types=1);
 
@@ -14,12 +15,15 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
+// Batas maksimum stok per buku
+const STOK_MAX = 500;
+
 $pdo    = db();
 $errors = [];
 $notice = '';
 
 // Nilai form (untuk repopulate saat validasi gagal)
-$form = ['id_buku' => 0, 'nomor_buku' => '', 'judul' => '', 'penulis' => '', 'penerbit' => '', 'tahun_terbit' => ''];
+$form = ['id_buku' => 0, 'nomor_buku' => '', 'judul' => '', 'penulis' => '', 'penerbit' => '', 'tahun_terbit' => '', 'stok' => '1'];
 
 /**
  * Validasi seluruh field buku; kembalikan array error.
@@ -52,6 +56,13 @@ function validate_buku(array $data, PDO $pdo, int $idBuku): array
 
     if ($data['tahun_terbit'] !== '' && !valid_tahun($data['tahun_terbit'])) {
         $errs[] = 'Tahun terbit harus angka 1901-2155.';
+    }
+
+    // Validasi stok: wajib angka, tidak boleh negatif, dan dibatasi maksimum STOK_MAX
+    if ($data['stok'] === '' || !ctype_digit((string) $data['stok'])) {
+        $errs[] = 'Stok wajib diisi dengan angka (0 atau lebih).';
+    } elseif ((int) $data['stok'] > STOK_MAX) {
+        $errs[] = 'Stok maksimal ' . STOK_MAX . ' per buku.';
     }
 
     // Cek duplikasi nomor buku (kecuali record yang sedang diedit)
@@ -104,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $form['penulis']     = trim((string) ($_POST['penulis'] ?? ''));
         $form['penerbit']    = trim((string) ($_POST['penerbit'] ?? ''));
         $form['tahun_terbit']= trim((string) ($_POST['tahun_terbit'] ?? ''));
+        $form['stok']        = trim((string) ($_POST['stok'] ?? ''));
 
         $errors = validate_buku($form, $pdo, $form['id_buku']);
 
@@ -112,26 +124,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($form['id_buku'] > 0) {
                     $stmt = $pdo->prepare('UPDATE buku
                                            SET nomor_buku = :nb, judul = :j, penulis = :p,
-                                               penerbit = :pn, tahun_terbit = :tt
+                                               penerbit = :pn, tahun_terbit = :tt, stok = :st
                                            WHERE id_buku = :id');
                     $stmt->execute([
                         ':nb' => $form['nomor_buku'], ':j' => $form['judul'],
                         ':p'  => $form['penulis'],    ':pn' => $form['penerbit'],
                         ':tt' => ($form['tahun_terbit'] !== '' ? (int) $form['tahun_terbit'] : null),
+                        ':st' => (int) $form['stok'],
                         ':id' => $form['id_buku'],
                     ]);
                     $notice = 'Data buku berhasil diperbarui.';
                 } else {
-                    $stmt = $pdo->prepare('INSERT INTO buku (nomor_buku, judul, penulis, penerbit, tahun_terbit)
-                                           VALUES (:nb, :j, :p, :pn, :tt)');
+                    $stmt = $pdo->prepare('INSERT INTO buku (nomor_buku, judul, penulis, penerbit, tahun_terbit, stok)
+                                           VALUES (:nb, :j, :p, :pn, :tt, :st)');
                     $stmt->execute([
                         ':nb' => $form['nomor_buku'], ':j' => $form['judul'],
                         ':p'  => $form['penulis'],    ':pn' => $form['penerbit'],
                         ':tt' => ($form['tahun_terbit'] !== '' ? (int) $form['tahun_terbit'] : null),
+                        ':st' => (int) $form['stok'],
                     ]);
                     $notice = 'Buku baru berhasil ditambahkan.';
                 }
-                $form = ['id_buku' => 0, 'nomor_buku' => '', 'judul' => '', 'penulis' => '', 'penerbit' => '', 'tahun_terbit' => ''];
+                $form = ['id_buku' => 0, 'nomor_buku' => '', 'judul' => '', 'penulis' => '', 'penerbit' => '', 'tahun_terbit' => '', 'stok' => '1'];
             } catch (PDOException $e) {
                 error_log('[SIPUS] Simpan buku error: ' . $e->getMessage());
                 $errors[] = 'Gagal menyimpan data buku.';
@@ -155,6 +169,7 @@ if (isset($_GET['edit'])) {
                 'penulis'      => $row['penulis'],
                 'penerbit'     => (string) ($row['penerbit'] ?? ''),
                 'tahun_terbit' => (string) ($row['tahun_terbit'] ?? ''),
+                'stok'         => (string) ($row['stok'] ?? '0'),
             ];
         }
     }
@@ -239,6 +254,13 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
                placeholder="cth: 2024"
                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
       </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-slate-600">Stok *</label>
+        <input type="number" name="stok" required min="0" max="<?= STOK_MAX ?>" value="<?= e($form['stok']) ?>"
+               placeholder="cth: 5"
+               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+        <p class="mt-1 text-xs text-slate-400">Maksimal <?= STOK_MAX ?> per buku.</p>
+      </div>
 
       <div class="flex gap-2 pt-1">
         <button class="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
@@ -264,13 +286,14 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
             <th class="px-4 py-3">Judul</th>
             <th class="px-4 py-3">Penulis</th>
             <th class="px-4 py-3">Tahun</th>
+            <th class="px-4 py-3">Stok</th>
             <th class="px-4 py-3">Status</th>
             <th class="px-4 py-3 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <?php if (count($daftarBuku) === 0): ?>
-            <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Tidak ada buku yang cocok.</td></tr>
+            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Tidak ada buku yang cocok.</td></tr>
           <?php endif; ?>
           <?php foreach ($daftarBuku as $buku): ?>
             <tr class="hover:bg-slate-50">
@@ -281,6 +304,7 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
               </td>
               <td class="px-4 py-3"><?= e($buku['penulis']) ?></td>
               <td class="px-4 py-3"><?= e($buku['tahun_terbit'] ?? '—') ?></td>
+              <td class="px-4 py-3"><?= e((string) ($buku['stok'] ?? '0')) ?></td>
               <td class="px-4 py-3">
                 <?php if ($buku['status'] === 'tersedia'): ?>
                   <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Tersedia</span>

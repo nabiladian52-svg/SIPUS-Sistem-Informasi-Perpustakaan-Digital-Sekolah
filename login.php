@@ -106,11 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </button>
   </form>
 
-  <div class="mt-6 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
-    <p class="font-semibold text-slate-600">Akun demo:</p>
-    <p>Admin: <code class="text-indigo-600">admin</code> / <code class="text-indigo-600">admin123</code></p>
-    <p>Siswa: <code class="text-indigo-600">siswa01</code> / <code class="text-indigo-600">siswa123</code></p>
-  </div>
+ 
 </div>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

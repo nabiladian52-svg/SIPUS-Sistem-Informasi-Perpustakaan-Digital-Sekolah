@@ -91,7 +91,7 @@ $pinjamanAktif = $stmtAktif->fetchAll();
 <div class="mt-8 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
   <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
     <h2 class="font-semibold">Pinjaman Aktif</h2>
-    <a href="daftar_buku.php" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">+ Pinjam Buku</a>
+    <a href="riwayat.php" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">+ Pinjam Buku</a>
   </div>
   <div class="overflow-x-auto">
     <table class="w-full text-left text-sm">

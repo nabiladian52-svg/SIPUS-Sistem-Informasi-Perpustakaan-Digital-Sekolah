@@ -61,8 +61,8 @@ INSERT INTO anggota (nomor_anggota, nama, kelas, username) VALUES
 ('AG002', 'Siti Aminah',  'XI RPL 2', 'siswa02');
 
 INSERT INTO buku (nomor_buku, judul, penulis, penerbit, tahun_terbit, status) VALUES
-('BK001', 'Pemrograman Web Dasar',        'Andi Wijaya',    'Informatika',    2021, 'tersedia'),
-('BK002', 'Basis Data Relasional MySQL',  'Rina Marlina',   'Erlangga',       2020, 'tersedia'),
-('BK003', 'Jaringan Komputer & Internet', 'Dedi Kurniawan', 'Gramedia Pustaka', 2019, 'tersedia'),
-('BK004', 'Matematika Untuk SMK Kelas XI','Tuti Hartati',   'Yudhistira',     2022, 'tersedia'),
-('BK005', 'Bahasa Indonesia Cerdas',      'Maya Lestari',   'Pusat Kurikulum', 2023, 'tersedia');
+('BK001', 'Teknik Jaringan Komputer dan Telekomunikasi',        'Andi Wijaya',    'Informatika',    2021, 'tersedia'),
+('BK002', 'Bahasa Indonesia',  'Rina Marlina',   'Erlangga',       2020, 'tersedia'),
+('BK003', 'Bahasa Inggris', 'Dedi Kurniawan', 'Gramedia Pustaka', 2019, 'tersedia'),
+('BK004', 'Pendidikan Agama Islam dan Budi Pekerti','Tuti Hartati',   'Yudhistira',     2022, 'tersedia'),
+('BK005', 'Matematika','Maya Lestari',   'Pusat Kurikulum', 2023, 'tersedia');

@@ -2,6 +2,7 @@
 /**
  * SIPUS - Detail Buku (Siswa).
  * Menampilkan informasi lengkap buku + form/aksi pinjam.
+ * Ditambahkan: informasi stok buku.
  */
 declare(strict_types=1);
 
@@ -150,6 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'pinjam'
       <div class="flex justify-between py-3"><dt class="text-slate-500">Penulis</dt><dd class="font-medium"><?= e($buku['penulis']) ?></dd></div>
       <div class="flex justify-between py-3"><dt class="text-slate-500">Penerbit</dt><dd class="font-medium"><?= e($buku['penerbit'] ?? '—') ?></dd></div>
       <div class="flex justify-between py-3"><dt class="text-slate-500">Tahun Terbit</dt><dd class="font-medium"><?= e($buku['tahun_terbit'] ?? '—') ?></dd></div>
+      <div class="flex justify-between py-3"><dt class="text-slate-500">Stok</dt><dd class="font-medium"><?= e((string) ($buku['stok'] ?? 0)) ?></dd></div>
       <div class="flex justify-between py-3"><dt class="text-slate-500">Total Dipinjam</dt><dd class="font-medium"><?= $totalDipinjam ?>&times;</dd></div>
     </dl>
   </div>
