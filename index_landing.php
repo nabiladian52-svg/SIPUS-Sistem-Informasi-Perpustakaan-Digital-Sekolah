@@ -216,7 +216,7 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
     <!-- Hero -->
     <section class="hero">
         <div class="hero-content">
-            <span class="badge">SMK N 1 Giritontro</span>
+            <span class="badge">SMK N 1 GIRITONTRO</span>
             <h1>Perpustakaan Digital <span>Lebih Mudah</span>, Lebih Cepat</h1>
             <p>
                 Kelola dan akses koleksi buku sekolah kapan saja. Cari buku, pinjam,

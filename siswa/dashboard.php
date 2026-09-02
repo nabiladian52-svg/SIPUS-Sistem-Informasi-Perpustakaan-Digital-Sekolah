@@ -108,14 +108,14 @@ $pinjamanAktif = $stmtAktif->fetchAll();
         <p class="text-sm opacity-80">Sedang Dipinjam</p>
         <p class="text-4xl font-bold"><?= (int) $ringkas['aktif'] ?></p>
       </div>
-      <span class="text-4xl">📖</span>
+      <span class="text-4xl"></span>
     </div>
     <div class="flex items-center justify-between rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div>
         <p class="text-sm text-slate-500">Total Buku Sudah Dibaca (Dikembalikan)</p>
         <p class="text-4xl font-bold text-slate-800"><?= (int) $ringkas['selesai'] ?></p>
       </div>
-      <span class="text-4xl">🏆</span>
+      <span class="text-4xl"></span>
     </div>
   </div>
 </div>
