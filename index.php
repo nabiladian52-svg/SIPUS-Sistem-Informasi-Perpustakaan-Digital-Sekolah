@@ -11,7 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Belum login -> halaman login
 if (!isset($_SESSION['role'])) {
-    header('Location: login.php');
+    header('Location: index_landing.php');
     exit;
 }
 
