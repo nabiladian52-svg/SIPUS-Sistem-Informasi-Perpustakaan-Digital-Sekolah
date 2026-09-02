@@ -2,15 +2,33 @@
 /**
  * SIPUS - CRUD Data Buku (Admin).
  * Fitur: tambah, edit, hapus, pencarian + sanitasi & validasi input.
- * Ditambahkan: fitur stok per buku (dibatasi maksimum STOK_MAX).
+ * Tampilan: disamakan dengan dashboard.php (background gradient + kartu glass/blur).
+ * Ditambahkan: pencarian instan (live search) via AJAX ke file ini sendiri (?ajax=1),
+ *              tanpa reload halaman, senada dengan pola polling pada dashboard.php.
+ *
+ * FIX:
+ *  - Named parameter PDO (:kw) sebelumnya dipakai 3x dalam satu query yang sama.
+ *    PDO tidak mendukung reuse named parameter tanpa emulasi prepare, sehingga
+ *    query bisa gagal / melempar exception saat live search dijalankan.
+ *    -> Sekarang memakai :kw1, :kw2, :kw3 masing-masing dengan value yang sama.
+ *  - Output buffer saat mode AJAX sekarang dibersihkan sepenuhnya (loop ob_end_clean)
+ *    supaya tidak ada HTML/whitespace nyasar yang merusak JSON.
+ *  - fetchAll() dipaksa pakai PDO::FETCH_ASSOC supaya hasil JSON konsisten.
+ *  - JS: error pada fetch() tidak lagi dibungkam diam-diam, sekarang di-log ke console
+ *    supaya mudah didiagnosis kalau request AJAX gagal.
  */
 declare(strict_types=1);
+
+// Tampung dulu output dari header.php, supaya kalau request-nya mode AJAX
+// kita bisa buang HTML-nya dan kirim JSON murni (pola sama seperti dashboard.php).
+ob_start();
 
 $pageTitle = 'Data Buku — SIPUS';
 require __DIR__ . '/../includes/header.php';
 
 // ── RBAC: hanya admin (mencegah direct URL access) ──
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    ob_end_clean();
     header('Location: ../login.php');
     exit;
 }
@@ -176,43 +194,73 @@ if (isset($_GET['edit'])) {
 }
 
 // ─── Pencarian (prepared statement, LIKE dengan escape wildcard) ───
+// FIX: named parameter tidak boleh dipakai berulang (:kw x3) dalam satu query
+// yang sama pada PDO — sekarang tiap placeholder punya nama sendiri (:kw1/:kw2/:kw3).
 $keyword = trim((string) ($_GET['q'] ?? ''));
 if ($keyword !== '') {
     $safeKeyword = addcslashes($keyword, '%_\\'); // escape wildcard LIKE
+    $like = '%' . $safeKeyword . '%';
+
     $stmt = $pdo->prepare('SELECT * FROM buku
-                           WHERE judul LIKE :kw OR penulis LIKE :kw OR nomor_buku LIKE :kw
+                           WHERE judul LIKE :kw1 OR penulis LIKE :kw2 OR nomor_buku LIKE :kw3
                            ORDER BY id_buku DESC
                            LIMIT 100');
-    $stmt->execute([':kw' => '%' . $safeKeyword . '%']);
+    $stmt->execute([
+        ':kw1' => $like,
+        ':kw2' => $like,
+        ':kw3' => $like,
+    ]);
 } else {
     $stmt = $pdo->prepare('SELECT * FROM buku ORDER BY id_buku DESC LIMIT 100');
     $stmt->execute();
 }
-$daftarBuku = $stmt->fetchAll();
+// FIX: paksa FETCH_ASSOC supaya struktur data konsisten saat di-json_encode.
+$daftarBuku = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// ── MODE AJAX: dipanggil oleh JavaScript setiap kali user mengetik di kolom pencarian ──
+if (isset($_GET['ajax'])) {
+    // FIX: buang SEMUA level output buffer (bisa lebih dari satu, tergantung header.php),
+    // supaya tidak ada HTML/whitespace yang bocor sebelum JSON dan merusak response.
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['data' => $daftarBuku], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
 ?>
 
+<!-- ══════════ Background aesthetic, senada dengan dashboard.php ══════════ -->
+<div class="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
+  <div class="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-indigo-300/30 blur-3xl"></div>
+  <div class="absolute top-1/3 -right-20 h-80 w-80 rounded-full bg-sky-300/30 blur-3xl"></div>
+  <div class="absolute -bottom-24 left-1/3 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl"></div>
+</div>
+
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
   <div>
-    <h1 class="text-2xl font-bold">Data Buku</h1>
+    <h1 class="text-2xl font-bold text-slate-800">Data Buku</h1>
     <p class="text-sm text-slate-500">Kelola koleksi buku perpustakaan (CRUD lengkap).</p>
   </div>
-  <form method="get" action="buku.php" class="flex gap-2">
-    <input type="text" name="q" value="<?= e($keyword) ?>" placeholder="Cari judul / penulis / nomor..."
-           class="w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
-    <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Cari</button>
-    <?php if ($keyword !== ''): ?>
-      <a href="buku.php" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Reset</a>
-    <?php endif; ?>
-  </form>
+
+    <form method="get" action="buku.php" id="form-cari" class="flex gap-2">
+      <input type="text" id="input-cari" name="q" value="<?= e($keyword) ?>" placeholder="Cari judul / penulis / nomor..."
+             class="w-56 rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm outline-none backdrop-blur focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+      <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700">Cari</button>
+      <?php if ($keyword !== ''): ?>
+        <a href="buku.php" id="reset-cari" class="rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Reset</a>
+      <?php endif; ?>
+    </form>
+  </div>
 </div>
 
 <?php if ($notice !== ''): ?>
-  <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"><?= e($notice) ?></div>
+  <div id="alert-notice" class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700 backdrop-blur transition-opacity duration-700"><?= e($notice) ?></div>
 <?php endif; ?>
 <?php if (!empty($errors)): ?>
-  <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+  <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 backdrop-blur">
     <ul class="list-inside list-disc">
       <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
     </ul>
@@ -221,8 +269,8 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
 
 <div class="grid gap-6 lg:grid-cols-3">
   <!-- Form tambah/edit -->
-  <div class="h-fit rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-    <h2 class="mb-4 font-semibold"><?= e($judulForm) ?></h2>
+  <div class="h-fit rounded-xl bg-white/70 p-5 shadow-sm ring-1 ring-slate-200 backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+    <h2 class="mb-4 font-semibold text-slate-800"><?= e($judulForm) ?></h2>
     <form method="post" action="buku.php" class="space-y-3">
       <input type="hidden" name="aksi" value="simpan">
       <input type="hidden" name="id_buku" value="<?= (int) $form['id_buku'] ?>">
@@ -231,56 +279,56 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
         <label class="mb-1 block text-xs font-medium text-slate-600">Nomor Buku *</label>
         <input type="text" name="nomor_buku" required maxlength="20" value="<?= e($form['nomor_buku']) ?>"
                placeholder="cth: BK006"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Judul *</label>
         <input type="text" name="judul" required maxlength="150" value="<?= e($form['judul']) ?>"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Penulis *</label>
         <input type="text" name="penulis" required maxlength="100" value="<?= e($form['penulis']) ?>"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Penerbit</label>
         <input type="text" name="penerbit" maxlength="100" value="<?= e($form['penerbit']) ?>"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Tahun Terbit</label>
         <input type="number" name="tahun_terbit" min="1901" max="2155" value="<?= e($form['tahun_terbit']) ?>"
                placeholder="cth: 2024"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Stok *</label>
         <input type="number" name="stok" required min="0" max="<?= STOK_MAX ?>" value="<?= e($form['stok']) ?>"
                placeholder="cth: 5"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
         <p class="mt-1 text-xs text-slate-400">Maksimal <?= STOK_MAX ?> per buku.</p>
       </div>
 
       <div class="flex gap-2 pt-1">
-        <button class="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+        <button class="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700">
           <?= $form['id_buku'] > 0 ? 'Perbarui' : 'Tambah' ?>
         </button>
         <?php if ($form['id_buku'] > 0): ?>
-          <a href="buku.php" class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Batal</a>
+          <a href="buku.php" class="rounded-lg border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Batal</a>
         <?php endif; ?>
       </div>
     </form>
   </div>
 
   <!-- Tabel daftar buku -->
-  <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 lg:col-span-2">
+  <div class="overflow-hidden rounded-xl bg-white/70 shadow-sm ring-1 ring-slate-200 backdrop-blur-md lg:col-span-2">
     <div class="border-b border-slate-100 px-5 py-4">
-      <h2 class="font-semibold">Daftar Buku <span class="text-sm font-normal text-slate-400">(<?= count($daftarBuku) ?>)</span></h2>
+      <h2 class="font-semibold text-slate-800">Daftar Buku <span id="jumlah-buku" class="text-sm font-normal text-slate-400">(<?= count($daftarBuku) ?>)</span></h2>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-left text-sm">
-        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <thead class="bg-slate-50/80 text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <th class="px-4 py-3">No. Buku</th>
             <th class="px-4 py-3">Judul</th>
@@ -291,7 +339,7 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
             <th class="px-4 py-3 text-right">Aksi</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
+        <tbody id="tabel-daftar-buku" class="divide-y divide-slate-100">
           <?php if (count($daftarBuku) === 0): ?>
             <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Tidak ada buku yang cocok.</td></tr>
           <?php endif; ?>
@@ -330,5 +378,161 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
     </div>
   </div>
 </div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   JAVASCRIPT — membuat halaman Data Buku lebih responsif:
+   1. Pencarian instan (live search): setiap kali user mengetik di kolom
+      pencarian, JS menunggu jeda singkat (debounce) lalu memanggil
+      buku.php?ajax=1&q=... dan merender ulang tabel TANPA reload halaman.
+   2. Submit form pencarian (tombol "Cari"/Enter) juga dialihkan lewat AJAX.
+   3. Notifikasi sukses (hijau) otomatis memudar & hilang setelah beberapa detik.
+
+   FIX: error pada fetch() sekarang di-log ke console.error, tidak lagi
+   dibungkam diam-diam, supaya kegagalan AJAX mudah didiagnosis.
+   ════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var input   = document.getElementById('input-cari');
+  var tbody   = document.getElementById('tabel-daftar-buku');
+  var counter = document.getElementById('jumlah-buku');
+  var formCari = document.getElementById('form-cari');
+  var resetLink = document.getElementById('reset-cari');
+  var DEBOUNCE_MS = 350;
+  var timer = null;
+
+  function badgeStatus(status) {
+    return status === 'tersedia'
+      ? '<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Tersedia</span>'
+      : '<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Dipinjam</span>';
+  }
+
+  // Bangun satu baris <tr> dari data JSON (pakai textContent, bukan HTML mentah, untuk data dari user).
+  function buatBaris(buku) {
+    var tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-50';
+
+    var tdNomor = document.createElement('td');
+    tdNomor.className = 'px-4 py-3 font-mono text-xs';
+    tdNomor.textContent = buku.nomor_buku;
+
+    var tdJudul = document.createElement('td');
+    tdJudul.className = 'px-4 py-3';
+    tdJudul.innerHTML = '<p class="font-medium"></p><p class="text-xs text-slate-400"></p>';
+    tdJudul.querySelector('p.font-medium').textContent = buku.judul;
+    tdJudul.querySelector('p.text-xs').textContent = buku.penerbit || '—';
+
+    var tdPenulis = document.createElement('td');
+    tdPenulis.className = 'px-4 py-3';
+    tdPenulis.textContent = buku.penulis;
+
+    var tdTahun = document.createElement('td');
+    tdTahun.className = 'px-4 py-3';
+    tdTahun.textContent = buku.tahun_terbit || '—';
+
+    var tdStok = document.createElement('td');
+    tdStok.className = 'px-4 py-3';
+    tdStok.textContent = buku.stok || '0';
+
+    var tdStatus = document.createElement('td');
+    tdStatus.className = 'px-4 py-3';
+    tdStatus.innerHTML = badgeStatus(buku.status);
+
+    var tdAksi = document.createElement('td');
+    tdAksi.className = 'px-4 py-3';
+    tdAksi.innerHTML =
+      '<div class="flex justify-end gap-2">' +
+        '<a href="buku.php?edit=' + encodeURIComponent(buku.id_buku) + '" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Edit</a>' +
+        '<form method="post" action="buku.php" onsubmit="return confirm(\'Hapus buku ini?\');">' +
+          '<input type="hidden" name="aksi" value="hapus">' +
+          '<input type="hidden" name="id_buku" value="' + buku.id_buku + '">' +
+          '<button class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>' +
+        '</form>' +
+      '</div>';
+
+    tr.appendChild(tdNomor);
+    tr.appendChild(tdJudul);
+    tr.appendChild(tdPenulis);
+    tr.appendChild(tdTahun);
+    tr.appendChild(tdStok);
+    tr.appendChild(tdStatus);
+    tr.appendChild(tdAksi);
+    return tr;
+  }
+
+  function perbaruiTabel(daftar) {
+    tbody.innerHTML = '';
+
+    if (!daftar || daftar.length === 0) {
+      var kosong = document.createElement('tr');
+      kosong.innerHTML = '<td colspan="7" class="px-4 py-8 text-center text-slate-400">Tidak ada buku yang cocok.</td>';
+      tbody.appendChild(kosong);
+      if (counter) counter.textContent = '(0)';
+      return;
+    }
+
+    daftar.forEach(function (buku) {
+      tbody.appendChild(buatBaris(buku));
+    });
+    if (counter) counter.textContent = '(' + daftar.length + ')';
+  }
+
+  function cariBuku(kata) {
+    var url = 'buku.php?ajax=1' + (kata ? '&q=' + encodeURIComponent(kata) : '');
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error('Respon server tidak OK (HTTP ' + res.status + ')');
+        }
+        return res.json();
+      })
+      .then(function (json) { perbaruiTabel(json.data); })
+      .catch(function (err) {
+        // FIX: sebelumnya error di sini dibungkam total, sekarang dicatat ke console
+        // supaya kegagalan pencarian (mis. JSON tidak valid / query error) terlihat jelas.
+        console.error('Pencarian buku gagal:', err);
+      });
+
+    // Perbarui URL address bar (tanpa reload) supaya tetap bisa di-refresh/bookmark.
+    var newUrl = kata ? ('buku.php?q=' + encodeURIComponent(kata)) : 'buku.php';
+    window.history.replaceState(null, '', newUrl);
+  }
+
+  if (input) {
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      var kata = input.value.trim();
+      timer = setTimeout(function () { cariBuku(kata); }, DEBOUNCE_MS);
+    });
+  }
+
+  if (formCari) {
+    formCari.addEventListener('submit', function (e) {
+      e.preventDefault();
+      clearTimeout(timer);
+      cariBuku(input.value.trim());
+    });
+  }
+
+  if (resetLink) {
+    resetLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      clearTimeout(timer);
+      input.value = '';
+      cariBuku('');
+    });
+  }
+
+  // Notifikasi sukses (hijau) otomatis memudar & hilang setelah beberapa detik.
+  var alertNotice = document.getElementById('alert-notice');
+  if (alertNotice) {
+    setTimeout(function () {
+      alertNotice.style.opacity = '0';
+      setTimeout(function () { alertNotice.remove(); }, 700);
+    }, 3500);
+  }
+})();
+</script>
 
 <?php require __DIR__ . '/../includes/footer.php'; ?>

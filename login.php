@@ -71,6 +71,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
+<style>
+  /* Background gradasi biru soft menyatu dari atas sampai footer */
+  html {
+    height: 100%;
+  }
+  body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%);
+  }
+
+  /* Konten utama mengisi ruang kosong agar footer terdorong ke bawah viewport */
+  body > main,
+  body > .flex-1,
+  body > div:not(footer):not(nav) {
+    flex: 1 0 auto;
+  }
+
+  /* Footer menyatu dengan gradasi, ditempel ke dasar layar */
+  footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    background: linear-gradient(180deg, #ffff 0%, #ffff 100%) !important;
+    color: #1e3a8a;
+  }
+  footer a {
+    color: #1e40af;
+  }
+
+  /* Wrapper input password agar ikon mata bisa diposisikan di dalam field */
+  .password-field-wrapper {
+    position: relative;
+  }
+  .password-field-wrapper input {
+    padding-right: 2.75rem; /* beri ruang untuk ikon */
+  }
+  .password-toggle-btn {
+    position: absolute;
+    top: 50%;
+    right: 0.5rem;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
+    border-radius: 0.375rem;
+  }
+  .password-toggle-btn:hover {
+    color: #334155;
+    background: #f1f5f9;
+  }
+  .password-toggle-btn:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+  .password-toggle-btn svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    pointer-events: none;
+  }
+    .password-toggle-btn .icon-eye {
+    display: none;
+  }
+  .password-toggle-btn[aria-pressed="true"] .icon-eye-off {
+    display: none;
+  }
+  .password-toggle-btn[aria-pressed="true"] .icon-eye {
+    display: block;
+  }
+</style>
+
 <div class="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-slate-200">
   <div class="mb-6 text-center">
     <span class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-indigo-600 text-2xl font-bold text-white">S</span>
@@ -95,9 +171,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div>
       <label for="password" class="mb-1 block text-sm font-medium text-slate-700">Password</label>
-      <input type="password" id="password" name="password" required maxlength="100"
-             class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-             placeholder="Masukkan password">
+      <div class="password-field-wrapper">
+        <input type="password" id="password" name="password" required maxlength="100"
+               class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+               placeholder="Masukkan password">
+        <button type="button"
+                id="togglePassword"
+                class="password-toggle-btn"
+                aria-controls="password"
+                aria-pressed="false"
+                aria-label="Tampilkan password">
+          <!-- Ikon mata terbuka (default: password tersembunyi) -->
+          <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <!-- Ikon mata tercoret (saat password ditampilkan) -->
+          <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.4 20.4 0 0 1 5.06-6.06M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 8 11 8a20.5 20.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <path d="M1 1l22 22"></path>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <button type="submit"
@@ -108,5 +203,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
  
 </div>
+
+<script>
+  // Toggle tampil/sembunyikan password.
+  // Catatan keamanan:
+  // - Hanya mengubah atribut "type" pada elemen input di sisi client (DOM),
+  //   tidak menyentuh/menyimpan/mengirim nilai password ke mana pun.
+  // - Tidak ada perubahan pada proses submit form, validasi server-side,
+  //   ataupun alur autentikasi (password_verify, prepared statement, session
+  //   regenerate) di atas — semuanya tetap seperti semula.
+  (function () {
+    var toggleBtn = document.getElementById('togglePassword');
+    var passwordInput = document.getElementById('password');
+
+    if (!toggleBtn || !passwordInput) return;
+
+    toggleBtn.addEventListener('click', function () {
+      var isHidden = passwordInput.getAttribute('type') === 'password';
+      passwordInput.setAttribute('type', isHidden ? 'text' : 'password');
+      toggleBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+      toggleBtn.setAttribute('aria-label', isHidden ? 'Sembunyikan password' : 'Tampilkan password');
+
+      // Kembalikan fokus ke input agar pengalaman mengetik tidak terputus.
+      passwordInput.focus();
+      var val = passwordInput.value;
+      passwordInput.setSelectionRange(val.length, val.length);
+    });
+  })();
+</script>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

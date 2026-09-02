@@ -78,8 +78,12 @@ if ($filterStatus !== 'semua') {
     $params[':status'] = $filterStatus;
 }
 if ($keyword !== '') {
-    $where[] = '(a.nama LIKE :kw OR a.nomor_anggota LIKE :kw OR b.judul LIKE :kw OR b.nomor_buku LIKE :kw)';
-    $params[':kw'] = '%' . addcslashes($keyword, '%_\\') . '%';
+    $where[] = '(a.nama LIKE :kw1 OR a.nomor_anggota LIKE :kw2 OR b.judul LIKE :kw3 OR b.nomor_buku LIKE :kw4)';
+    $safeKeyword = '%' . addcslashes($keyword, '%_\\') . '%';
+    $params[':kw1'] = $safeKeyword;
+    $params[':kw2'] = $safeKeyword;
+    $params[':kw3'] = $safeKeyword;
+    $params[':kw4'] = $safeKeyword;
 }
 
 $sql = 'SELECT p.id_peminjaman, a.nomor_anggota, a.nama, a.kelas,
@@ -99,6 +103,51 @@ $stmt->execute($params);
 $transaksi = $stmt->fetchAll();
 ?>
 
+<style>
+  /* Background gradasi biru soft — sama seperti halaman Anggota */
+  html {
+    height: 100%;
+    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+  }
+  body {
+    min-height: 100%;
+    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+  }
+
+  /* Navbar semi-transparan agar menyatu dengan gradasi */
+  body > nav,
+  nav.bg-white,
+  header nav {
+    background: rgba(255, 255, 255, 0.55) !important;
+    background-image: none !important;
+    backdrop-filter: blur(6px);
+  }
+
+  /* ── Responsif: form filter & tabel ── */
+  @media (max-width: 640px) {
+    #formFilterPeminjaman {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    #formFilterPeminjaman input[type="text"],
+    #formFilterPeminjaman select,
+    #formFilterPeminjaman button,
+    #formFilterPeminjaman a {
+      width: 100%;
+    }
+  }
+
+  /* Tabel tetap bisa discroll horizontal di layar sempit tanpa merusak layout */
+  .tabel-scroll-wrapper {
+    -webkit-overflow-scrolling: touch;
+  }
+  @media (max-width: 640px) {
+    .tabel-scroll-wrapper table {
+      min-width: 720px;
+    }
+  }
+</style>
+
 <div class="mb-6">
   <h1 class="text-2xl font-bold">Transaksi Peminjaman</h1>
   <p class="text-sm text-slate-500">Pantau peminjaman dan proses pengembalian buku.</p>
@@ -116,18 +165,18 @@ $transaksi = $stmt->fetchAll();
 <?php endif; ?>
 
 <!-- Filter & pencarian -->
-<form method="get" action="peminjaman.php" class="mb-4 flex flex-wrap items-center gap-2">
+<form method="get" action="peminjaman.php" id="formFilterPeminjaman" class="mb-4 flex flex-wrap items-center gap-2">
   <input type="text" name="q" value="<?= e($keyword) ?>" placeholder="Cari nama / buku / nomor..."
-         class="w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+         class="w-full sm:w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
   <select name="status"
-          class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500">
+          class="w-full sm:w-auto rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500">
     <option value="semua"        <?= $filterStatus === 'semua' ? 'selected' : '' ?>>Semua Status</option>
     <option value="dipinjam"     <?= $filterStatus === 'dipinjam' ? 'selected' : '' ?>>Dipinjam</option>
     <option value="dikembalikan" <?= $filterStatus === 'dikembalikan' ? 'selected' : '' ?>>Dikembalikan</option>
   </select>
-  <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Terapkan</button>
+  <button class="w-full sm:w-auto rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Terapkan</button>
   <?php if ($keyword !== '' || $filterStatus !== 'semua'): ?>
-    <a href="peminjaman.php" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Reset</a>
+    <a href="peminjaman.php" class="w-full sm:w-auto rounded-lg border border-slate-300 px-3 py-2 text-center text-sm text-slate-600 hover:bg-slate-50">Reset</a>
   <?php endif; ?>
 </form>
 
@@ -136,7 +185,7 @@ $transaksi = $stmt->fetchAll();
   <div class="border-b border-slate-100 px-5 py-4">
     <h2 class="font-semibold">Daftar Transaksi <span class="text-sm font-normal text-slate-400">(<?= count($transaksi) ?>)</span></h2>
   </div>
-  <div class="overflow-x-auto">
+  <div class="overflow-x-auto tabel-scroll-wrapper">
     <table class="w-full text-left text-sm">
       <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
         <tr>

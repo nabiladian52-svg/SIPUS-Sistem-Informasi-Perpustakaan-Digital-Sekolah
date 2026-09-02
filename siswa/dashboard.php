@@ -45,6 +45,39 @@ $stmtAktif->execute([':id' => $idAnggota]);
 $pinjamanAktif = $stmtAktif->fetchAll();
 ?>
 
+<style>
+  /* Background gradasi biru — sama persis seperti halaman login */
+  html {
+    height: 100%;
+  }
+  body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #bfdbfe 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+  }
+
+  /* Konten utama mengisi ruang kosong agar footer terdorong ke bawah viewport */
+  body > main,
+  body > .flex-1,
+  body > div:not(footer):not(nav) {
+    flex: 1 0 auto;
+  }
+
+  /* Footer — sama persis seperti halaman login */
+  footer,
+  body > footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    background: linear-gradient(180deg, #bfdbfe 0%, #f1f2f4 100%) !important;
+    background-image: linear-gradient(180deg, #ffffff 0%, #ffffff 100%) !important;
+    color: #1e3a8a !important;
+  }
+  footer a {
+    color: #1e40af !important;
+  }
+</style>
+
 <div class="mb-6">
   <h1 class="text-2xl font-bold">Halo, <?= e($profil['nama']) ?> 👋</h1>
   <p class="text-sm text-slate-500">Selamat membaca! Berikut ringkasan akun perpustakaanmu.</p>

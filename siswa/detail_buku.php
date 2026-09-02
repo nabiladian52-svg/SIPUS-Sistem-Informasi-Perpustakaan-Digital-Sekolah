@@ -117,6 +117,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'pinjam'
 }
 ?>
 
+<style>
+  /* Background gradasi biru — sama persis seperti halaman login */
+  html {
+    height: 100%;
+    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+  }
+  body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+  }
+
+  /* Navbar semi-transparan agar menyatu dengan gradasi */
+  body > nav,
+  nav.bg-white,
+  header nav {
+    background: rgba(255, 255, 255, 0.55) !important;
+    background-image: none !important;
+    backdrop-filter: blur(6px);
+  }
+
+  /* Konten utama mengisi ruang kosong agar footer terdorong ke bawah viewport */
+  body > main,
+  body > .flex-1,
+  body > div:not(footer):not(nav) {
+    flex: 1 0 auto;
+    background: transparent !important;
+  }
+
+  /* Footer — sama persis seperti halaman login */
+  footer,
+  body > footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    background: linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%) !important;
+    background-image: linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%) !important;
+    color: #1e3a8a !important;
+  }
+  footer a {
+    color: #1e40af !important;
+  }
+</style>
+
 <div class="mb-6">
   <a href="daftar_buku.php" class="text-sm font-medium text-indigo-600 hover:underline">&larr; Kembali ke daftar buku</a>
 </div>
