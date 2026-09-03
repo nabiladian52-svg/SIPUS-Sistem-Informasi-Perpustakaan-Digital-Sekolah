@@ -408,10 +408,7 @@ function sipusInisial(string $nama): string
         var jamSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         document.getElementById('last-updated').textContent = '· diperbarui ' + jamSekarang;
       })
-      .catch(function () {
-        document.getElementById('live-status').textContent = 'Terputus';
-      });
-  }
+  
 
   // Jalankan animasi count-up awal begitu halaman siap.
   document.addEventListener('DOMContentLoaded', function () {

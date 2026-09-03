@@ -79,7 +79,7 @@ $pinjamanAktif = $stmtAktif->fetchAll();
 </style>
 
 <div class="mb-6">
-  <h1 class="text-2xl font-bold">Halo, <?= e($profil['nama']) ?> 👋</h1>
+  <h1 class="text-2xl font-bold">Halo, <?= e($profil['nama']) ?> </h1>
   <p class="text-sm text-slate-500">Selamat membaca! Berikut ringkasan akun perpustakaanmu.</p>
 </div>
 
