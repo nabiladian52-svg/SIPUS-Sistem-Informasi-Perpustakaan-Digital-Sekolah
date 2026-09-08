@@ -186,6 +186,127 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         line-height: 1.5;
     }
 
+    /* ABOUT SECTION - palet sama persis dengan hero & feature cards */
+    
+    .about-wrapper {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 50px;
+        align-items: center;
+    }
+
+    .about-text .badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.55);
+        border: 1px solid rgba(74, 144, 217, 0.5);
+        color: #1e3a5f;
+        padding: 6px 16px;
+        border-radius: 30px;
+        font-size: 13px;
+        margin-bottom: 18px;
+        font-weight: 600;
+    }
+
+    .about-text h2 {
+        font-size: 30px;
+        line-height: 1.35;
+        color: #17324f;
+        margin-bottom: 18px;
+    }
+
+    .about-text h2 span { color: #2e6cb8; }
+
+    .about-text p {
+        font-size: 15px;
+        color: #2c4a68;
+        line-height: 1.7;
+        margin-bottom: 16px;
+        font-weight: 500;
+    }
+
+    .about-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-top: 25px;
+    }
+
+    .about-stats .stat {
+        background: #eaf2fb;
+        border: 1px solid #dceaf9;
+        border-radius: 12px;
+        padding: 18px 10px;
+        text-align: center;
+    }
+
+    .about-stats .stat strong {
+        display: block;
+        font-size: 22px;
+        color: #4a90d9;
+        margin-bottom: 4px;
+    }
+
+    .about-stats .stat span {
+        font-size: 12px;
+        color: #5a7897;
+    }
+
+    .about-visual {
+        background: #eaf2fb;
+        border: 1px solid #dceaf9;
+        border-radius: 16px;
+        padding: 40px 30px;
+    }
+
+    .about-visual ul {
+        list-style: none;
+    }
+
+    .about-visual li {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        background: #ffffff;
+        border: 1px solid #dceaf9;
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 16px rgba(74, 144, 217, 0.08);
+    }
+
+    .about-visual li:last-child { margin-bottom: 0; }
+
+    .about-visual li .icon {
+        flex-shrink: 0;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #4a90d9;
+        color: #fff;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .about-visual li div h4 {
+        font-size: 14.5px;
+        color: #1e3a5f;
+        margin-bottom: 3px;
+    }
+
+    .about-visual li div p {
+        font-size: 12.5px;
+        color: #5a7897;
+        line-height: 1.4;
+    }
+
+    @media (max-width: 800px) {
+        .about-wrapper { grid-template-columns: 1fr; }
+    }
+
     footer {
         text-align: center;
         padding: 25px;
@@ -199,6 +320,7 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         nav { padding: 15px 20px; }
         nav .nav-links { gap: 15px; }
         .hero h1 { font-size: 30px; }
+        .about-stats { grid-template-columns: 1fr 1fr; }
     }
 </style>
 </head>
@@ -253,7 +375,68 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         </div>
     </section>
 
-    <footer id="tentang">
+    <!-- About Section -->
+    <section class="about" id="tentang">
+        <div class="about-wrapper">
+            <div class="about-text">
+                <span class="badge">TENTANG SIPUS</span>
+                <h2>Solusi Digital untuk <span>Perpustakaan Sekolah</span> yang Lebih Modern</h2>
+                <p>
+                    SIPUS (Sistem Informasi Perpustakaan Digital Sekolah) dikembangkan untuk
+                    SMK N 1 Giritontro guna mempermudah pengelolaan perpustakaan, mulai dari
+                    pendataan koleksi buku, proses peminjaman dan pengembalian, hingga
+                    pemantauan riwayat aktivitas siswa secara real-time.
+                </p>
+                <p>
+                    Dengan SIPUS, siswa dapat mencari dan mengajukan peminjaman buku
+                    tanpa harus datang dan antre secara manual, sementara admin
+                    perpustakaan dapat mengelola data koleksi dan memantau laporan
+                    peminjaman dengan lebih efisien dan akurat.
+                </p>
+                <div class="about-stats">
+                    <div class="stat">
+                        <strong>24/7</strong>
+                        <span>Akses Online</span>
+                    </div>
+                    <div class="stat">
+                        <strong>2</strong>
+                        <span>Peran Pengguna</span>
+                    </div>
+                    <div class="stat">
+                        <strong>100%</strong>
+                        <span>Digital</span>
+                    </div>
+                </div>
+            </div>
+            <div class="about-visual">
+                <ul>
+                    <li>
+                        <span class="icon">🏫</span>
+                        <div>
+                            <h4>Dibangun untuk Sekolah</h4>
+                            <p>Dirancang khusus untuk kebutuhan perpustakaan SMK N 1 Giritontro.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="icon">🖱️</span>
+                        <div>
+                            <h4>Mudah Digunakan</h4>
+                            <p>Antarmuka sederhana sehingga siswa dan admin dapat memakainya tanpa pelatihan khusus.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="icon">🗂️</span>
+                        <div>
+                            <h4>Data Tersimpan Rapi</h4>
+                            <p>Setiap transaksi peminjaman tercatat otomatis dan dapat dilihat kapan saja.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <footer>
         &copy; <?= date('Y') ?> SIPUS - Sistem Informasi Perpustakaan Digital Sekolah, SMK N 1 Giritontro
     </footer>
 
