@@ -14,7 +14,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Koneksi database
-require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/database.php';
 
 // Kalau sudah login, langsung arahkan ke dashboard
 if (isset($_SESSION['role'])) {
@@ -131,7 +131,7 @@ $pageTitle = 'Login — SIPUS';
 require __DIR__ . '/includes/header.php';
 ?>
 
-<div class="login-container">
+<div class="flex min-h-[70vh] items-center justify-center">
 
     <div class="login-card">
 
