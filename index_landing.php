@@ -16,10 +16,13 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
 
+    html { overflow-x: hidden; }
+
     body {
         min-height: 100vh;
         background: #eaf2fb;
         color: #1e3a5f;
+        overflow-x: hidden;
     }
 
     nav {
@@ -40,6 +43,7 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         font-weight: bold;
         letter-spacing: 1px;
         color: #1e3a5f;
+        white-space: nowrap;
     }
 
     nav .logo span { color: #4a90d9; }
@@ -187,7 +191,10 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
     }
 
     /* ABOUT SECTION - palet sama persis dengan hero & feature cards */
-    
+    .about {
+        padding: 0 20px;
+    }
+
     .about-wrapper {
         max-width: 1100px;
         margin: 0 auto;
@@ -195,6 +202,7 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         grid-template-columns: 1fr 1fr;
         gap: 50px;
         align-items: center;
+        padding: 0 0 60px;
     }
 
     .about-text .badge {
@@ -303,10 +311,6 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         line-height: 1.4;
     }
 
-    @media (max-width: 800px) {
-        .about-wrapper { grid-template-columns: 1fr; }
-    }
-
     footer {
         text-align: center;
         padding: 25px;
@@ -316,11 +320,59 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
         border-top: 1px solid #dceaf9;
     }
 
+    /* ===== TABLET ===== */
+    @media (max-width: 900px) {
+        .about-wrapper { grid-template-columns: 1fr; gap: 35px; }
+        .about-visual { padding: 30px 20px; }
+    }
+
+    /* ===== MOBILE (general) ===== */
     @media (max-width: 600px) {
-        nav { padding: 15px 20px; }
-        nav .nav-links { gap: 15px; }
-        .hero h1 { font-size: 30px; }
-        .about-stats { grid-template-columns: 1fr 1fr; }
+        nav { padding: 12px 16px; }
+        nav .logo { font-size: 17px; }
+        nav .nav-links { gap: 10px; }
+        nav .nav-links a { font-size: 12.5px; }
+        nav .btn-login { padding: 8px 14px; font-size: 12.5px; }
+
+        .hero { padding: 60px 16px 60px; }
+        .hero .badge { font-size: 11.5px; padding: 5px 12px; margin-bottom: 18px; }
+        .hero h1 { font-size: 26px; line-height: 1.35; margin-bottom: 14px; }
+        .hero p { font-size: 14px; margin-bottom: 26px; }
+        .hero-buttons { flex-direction: column; gap: 12px; }
+        .hero-buttons a { width: 100%; text-align: center; padding: 13px 20px; }
+
+        .features { padding: 40px 16px 60px; gap: 16px; grid-template-columns: 1fr; }
+        .feature-card { padding: 22px 18px; }
+        .feature-card .icon { font-size: 32px; margin-bottom: 10px; }
+        .feature-card h3 { font-size: 16px; }
+        .feature-card p { font-size: 13px; }
+
+        .about { padding: 0 16px; }
+        .about-wrapper { padding: 40px 0 40px; gap: 24px; }
+        .about-text .badge { font-size: 11.5px; }
+        .about-text h2 { font-size: 22px; margin-bottom: 14px; }
+        .about-text p { font-size: 13.5px; line-height: 1.6; margin-bottom: 12px; }
+
+        .about-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+        .about-stats .stat { padding: 12px 6px; }
+        .about-stats .stat strong { font-size: 17px; }
+        .about-stats .stat span { font-size: 10.5px; }
+
+        .about-visual { padding: 20px 16px; border-radius: 14px; }
+        .about-visual li { padding: 12px 14px; gap: 10px; margin-bottom: 10px; }
+        .about-visual li .icon { width: 28px; height: 28px; font-size: 13px; }
+        .about-visual li div h4 { font-size: 13.5px; }
+        .about-visual li div p { font-size: 12px; }
+
+        footer { padding: 18px 16px; font-size: 11.5px; }
+    }
+
+    /* ===== SMALL MOBILE ===== */
+    @media (max-width: 380px) {
+        nav .nav-links a:not(.btn-login) { display: none; }
+        .hero h1 { font-size: 22px; }
+        .about-stats { grid-template-columns: 1fr 1fr 1fr; }
+        .about-stats .stat strong { font-size: 15px; }
     }
 </style>
 </head>
