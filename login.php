@@ -6,6 +6,7 @@
  * - Prepared statement PDO (anti SQL Injection)
  */
 declare(strict_types=1);
+ob_start();
 
 $hideNavbar = true;
 $pageTitle  = 'Login — SIPUS';
