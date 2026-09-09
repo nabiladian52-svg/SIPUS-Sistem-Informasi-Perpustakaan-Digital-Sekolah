@@ -167,14 +167,23 @@ require __DIR__ . '/includes/header.php';
             <div class="form-group">
                 <label for="password">Password</label>
 
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    placeholder="Masukkan password"
-                    autocomplete="current-password"
-                    required
-                >
+                <div class="password-input-wrapper" style="position: relative;">
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Masukkan password"
+                        autocomplete="current-password"
+                        style="padding-right: 40px; width: 100%; box-sizing: border-box;"
+                        required
+                    >
+                    <button
+                        type="button"
+                        id="togglePassword"
+                        aria-label="Tampilkan atau sembunyikan password"
+                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px;"
+                    >👁️</button>
+                </div>
             </div>
 
             <button type="submit" class="btn-login">
@@ -186,6 +195,21 @@ require __DIR__ . '/includes/header.php';
     </div>
 
 </div>
+
+<script>
+    (function () {
+        var toggleBtn = document.getElementById('togglePassword');
+        var passwordInput = document.getElementById('password');
+
+        if (toggleBtn && passwordInput) {
+            toggleBtn.addEventListener('click', function () {
+                var isHidden = passwordInput.type === 'password';
+                passwordInput.type = isHidden ? 'text' : 'password';
+                toggleBtn.textContent = isHidden ? '🙈' : '👁️';
+            });
+        }
+    })();
+</script>
 
 <?php
 // Footer halaman
