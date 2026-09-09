@@ -1,28 +1,22 @@
 <?php
 /**
- * SIPUS - Halaman Login
+ * SIPUS - Halaman Login.
+ * - password_verify() untuk cek hash Bcrypt
+ * - session_regenerate_id(true) setelah login sukses (anti Session Fixation)
+ * - Prepared statement PDO (anti SQL Injection)
  */
-
 declare(strict_types=1);
 
 // Aktifkan output buffering SEBELUM ada output apa pun
 ob_start();
 
-// Mulai session sebelum include file lain
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+$hideNavbar = true;
+$pageTitle  = 'Login — SIPUS';
+require __DIR__ . '/includes/header.php';
 
-// Koneksi database
-require_once __DIR__ . '/includes/database.php';
-
-// Kalau sudah login, langsung arahkan ke dashboard
+// Sudah login? langsung arahkan ke dashboard sesuai role.
 if (isset($_SESSION['role'])) {
-    if ($_SESSION['role'] === 'admin') {
-        header('Location: admin/dashboard.php');
-    } else {
-        header('Location: siswa/dashboard.php');
-    }
+    header('Location: ' . ($_SESSION['role'] === 'admin' ? 'admin/dashboard.php' : 'siswa/dashboard.php'));
     exit;
 }
 
@@ -30,191 +24,219 @@ $error = '';
 $username = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
+    // ── 1. Ambil & sanitasi input ──
     $username = trim((string) ($_POST['username'] ?? ''));
     $password = (string) ($_POST['password'] ?? '');
 
-    // Validasi input
+    // ── 2. Validasi server-side: tidak boleh kosong ──
     if ($username === '' || $password === '') {
-
         $error = 'Username dan password wajib diisi.';
-
     } elseif (!preg_match('/^[a-zA-Z0-9_.]{3,50}$/', $username)) {
-
         $error = 'Format username tidak valid (3-50 karakter, huruf/angka/titik/garis bawah).';
-
     } else {
-
+        // ── 3. Ambil user via prepared statement ──
         try {
-
-            // Cari user berdasarkan username
-            $stmt = db()->prepare(
-                'SELECT id_user, username, password, role
-                 FROM users
-                 WHERE username = :username
-                 LIMIT 1'
-            );
-
-            $stmt->execute([
-                ':username' => $username
-            ]);
-
+            $stmt = db()->prepare('SELECT id_user, username, password, role FROM users WHERE username = :username LIMIT 1');
+            $stmt->execute([':username' => $username]);
             $user = $stmt->fetch();
 
-            // Cek username dan password
+            // ── 4. Verifikasi password hash + anti user-enumeration ──
             if ($user && password_verify($password, $user['password'])) {
-
-                // Regenerate session untuk keamanan
+                // Session hardening: ID session baru (anti fixation)
                 session_regenerate_id(true);
 
-                // Simpan data user ke session
-                $_SESSION['id_user'] = (int) $user['id_user'];
+                $_SESSION['id_user']  = (int) $user['id_user'];
                 $_SESSION['username'] = $user['username'];
-                $_SESSION['role'] = $user['role'];
+                $_SESSION['role']     = $user['role'];
 
-                // Jika siswa, ambil nama dari tabel anggota
+                // Ambil nama anggota untuk ditampilkan di navbar (jika siswa)
                 if ($user['role'] === 'siswa') {
-
-                    $stmtA = db()->prepare(
-                        'SELECT nama
-                         FROM anggota
-                         WHERE username = :username
-                         LIMIT 1'
-                    );
-
-                    $stmtA->execute([
-                        ':username' => $user['username']
-                    ]);
-
+                    $stmtA = db()->prepare('SELECT nama FROM anggota WHERE username = :u LIMIT 1');
+                    $stmtA->execute([':u' => $user['username']]);
                     $anggota = $stmtA->fetch();
-
-                    $_SESSION['nama'] =
-                        $anggota['nama'] ?? $user['username'];
-
+                    $_SESSION['nama'] = $anggota['nama'] ?? $user['username'];
                 } else {
-
-                    // Nama untuk admin
                     $_SESSION['nama'] = 'Administrator';
                 }
 
-                // Redirect berdasarkan role
-                if ($user['role'] === 'admin') {
-
-                    header('Location: admin/dashboard.php');
-
-                } else {
-
-                    header('Location: siswa/dashboard.php');
-                }
-
+                header('Location: ' . ($user['role'] === 'admin' ? 'admin/dashboard.php' : 'siswa/dashboard.php'));
                 exit;
             }
 
-            // Login gagal
+            // Pesan generik agar penyerang tidak tahu user mana yang ada
             $error = 'Username atau password salah.';
 
         } catch (PDOException $e) {
-
-            // Simpan error ke log, jangan tampilkan detail database ke user
             error_log('[SIPUS] Login error: ' . $e->getMessage());
-
             $error = 'Terjadi gangguan pada server. Silakan coba lagi.';
         }
     }
 }
-
-// Pengaturan halaman
-$hideNavbar = true;
-$pageTitle = 'Login — SIPUS';
-
-// Header halaman
-require __DIR__ . '/includes/header.php';
 ?>
 
-<div class="flex min-h-[70vh] items-center justify-center">
+<style>
+  /* Background gradasi biru soft menyatu dari atas sampai footer */
+  html {
+    height: 100%;
+  }
+  body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%);
+  }
 
-    <div class="login-card">
+  /* Konten utama mengisi ruang kosong agar footer terdorong ke bawah viewport */
+  body > main,
+  body > .flex-1,
+  body > div:not(footer):not(nav) {
+    flex: 1 0 auto;
+  }
 
-        <div class="login-header">
-            <h1>SIPUS</h1>
-            <p>Sistem Informasi Perpustakaan Digital Sekolah</p>
-        </div>
+  /* Footer menyatu dengan gradasi, ditempel ke dasar layar */
+  footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    background: linear-gradient(180deg, #ffff 0%, #ffff 100%) !important;
+    color: #1e3a8a;
+  }
+  footer a {
+    color: #1e40af;
+  }
 
-        <?php if ($error !== ''): ?>
+  /* Wrapper input password agar ikon mata bisa diposisikan di dalam field */
+  .password-field-wrapper {
+    position: relative;
+  }
+  .password-field-wrapper input {
+    padding-right: 2.75rem; /* beri ruang untuk ikon */
+  }
+  .password-toggle-btn {
+    position: absolute;
+    top: 50%;
+    right: 0.5rem;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
+    border-radius: 0.375rem;
+  }
+  .password-toggle-btn:hover {
+    color: #334155;
+    background: #f1f5f9;
+  }
+  .password-toggle-btn:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+  .password-toggle-btn svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    pointer-events: none;
+  }
+    .password-toggle-btn .icon-eye {
+    display: none;
+  }
+  .password-toggle-btn[aria-pressed="true"] .icon-eye-off {
+    display: none;
+  }
+  .password-toggle-btn[aria-pressed="true"] .icon-eye {
+    display: block;
+  }
+</style>
 
-            <div class="alert alert-danger">
-                <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
-            </div>
+<div class="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-slate-200">
+  <div class="mb-6 text-center">
+    <span class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-indigo-600 text-2xl font-bold text-white">S</span>
+    <h1 class="text-2xl font-bold text-slate-800">SIPUS</h1>
+    <p class="mt-1 text-sm text-slate-500">Sistem Informasi Perpustakaan Digital Sekolah</p>
+  </div>
 
-        <?php endif; ?>
+  <?php if ($error !== ''): ?>
+    <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+      <?= e($error) ?>
+    </div>
+  <?php endif; ?>
 
-        <form method="POST" action="">
-
-            <div class="form-group">
-                <label for="username">Username</label>
-
-                <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    value="<?= htmlspecialchars($username, ENT_QUOTES, 'UTF-8') ?>"
-                    placeholder="Masukkan username"
-                    autocomplete="username"
-                    required
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="password">Password</label>
-
-                <div class="password-input-wrapper" style="position: relative;">
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Masukkan password"
-                        autocomplete="current-password"
-                        style="padding-right: 40px; width: 100%; box-sizing: border-box;"
-                        required
-                    >
-                    <button
-                        type="button"
-                        id="togglePassword"
-                        aria-label="Tampilkan atau sembunyikan password"
-                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px;"
-                    >👁️</button>
-                </div>
-            </div>
-
-            <button type="submit" class="btn-login">
-                Login
-            </button>
-
-        </form>
-
+  <form method="post" action="login.php" class="space-y-4" autocomplete="off">
+    <div>
+      <label for="username" class="mb-1 block text-sm font-medium text-slate-700">Username</label>
+      <input type="text" id="username" name="username" required maxlength="50"
+             value="<?= e($username) ?>"
+             class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+             placeholder="Masukkan username">
     </div>
 
+    <div>
+      <label for="password" class="mb-1 block text-sm font-medium text-slate-700">Password</label>
+      <div class="password-field-wrapper">
+        <input type="password" id="password" name="password" required maxlength="100"
+               class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+               placeholder="Masukkan password">
+        <button type="button"
+                id="togglePassword"
+                class="password-toggle-btn"
+                aria-controls="password"
+                aria-pressed="false"
+                aria-label="Tampilkan password">
+          <!-- Ikon mata terbuka (default: password tersembunyi) -->
+          <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <!-- Ikon mata tercoret (saat password ditampilkan) -->
+          <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.4 20.4 0 0 1 5.06-6.06M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 8 11 8a20.5 20.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <path d="M1 1l22 22"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit"
+            class="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      Masuk
+    </button>
+  </form>
+
+ 
 </div>
 
 <script>
-    (function () {
-        var toggleBtn = document.getElementById('togglePassword');
-        var passwordInput = document.getElementById('password');
+  // Toggle tampil/sembunyikan password.
+  // Catatan keamanan:
+  // - Hanya mengubah atribut "type" pada elemen input di sisi client (DOM),
+  //   tidak menyentuh/menyimpan/mengirim nilai password ke mana pun.
+  // - Tidak ada perubahan pada proses submit form, validasi server-side,
+  //   ataupun alur autentikasi (password_verify, prepared statement, session
+  //   regenerate) di atas — semuanya tetap seperti semula.
+  (function () {
+    var toggleBtn = document.getElementById('togglePassword');
+    var passwordInput = document.getElementById('password');
 
-        if (toggleBtn && passwordInput) {
-            toggleBtn.addEventListener('click', function () {
-                var isHidden = passwordInput.type === 'password';
-                passwordInput.type = isHidden ? 'text' : 'password';
-                toggleBtn.textContent = isHidden ? '🙈' : '👁️';
-            });
-        }
-    })();
+    if (!toggleBtn || !passwordInput) return;
+
+    toggleBtn.addEventListener('click', function () {
+      var isHidden = passwordInput.getAttribute('type') === 'password';
+      passwordInput.setAttribute('type', isHidden ? 'text' : 'password');
+      toggleBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+      toggleBtn.setAttribute('aria-label', isHidden ? 'Sembunyikan password' : 'Tampilkan password');
+
+      // Kembalikan fokus ke input agar pengalaman mengetik tidak terputus.
+      passwordInput.focus();
+      var val = passwordInput.value;
+      passwordInput.setSelectionRange(val.length, val.length);
+    });
+  })();
 </script>
 
-<?php
-// Footer halaman
-require __DIR__ . '/includes/footer.php';
+<?php require __DIR__ . '/includes/footer.php';
 
 // Akhiri output buffering
 ob_end_flush();
-?>
+?>git
