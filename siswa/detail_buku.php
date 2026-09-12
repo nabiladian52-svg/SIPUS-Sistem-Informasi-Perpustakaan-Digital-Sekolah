@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'pinjam'
     min-height: 100%;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+    background: linear-gradient(180deg, #bfdbfe 0%, #bfdbfe 45%, #bfdbfe 100%) !important;
   }
 
   /* Navbar semi-transparan agar menyatu dengan gradasi */
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'pinjam'
     flex-shrink: 0;
     margin-top: auto;
     background: linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%) !important;
-    background-image: linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%) !important;
+    background-image: linear-gradient(180deg, #ffffff 0%, #ffffff 100%) !important;
     color: #1e3a8a !important;
   }
   footer a {
@@ -218,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'pinjam'
         <input type="hidden" name="aksi" value="pinjam">
         <input type="hidden" name="id_buku" value="<?= (int) $buku['id_buku'] ?>">
         <button class="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700">
-          📖 Pinjam Buku Ini
+         Pinjam Buku Ini
         </button>
       </form>
     <?php endif; ?>

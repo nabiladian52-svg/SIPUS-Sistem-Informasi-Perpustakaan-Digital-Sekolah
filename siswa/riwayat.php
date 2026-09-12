@@ -86,6 +86,19 @@ foreach ($riwayat as $r) {
   }
 </style>
 
+<style>
+  /* ══════════════════ Tambahan: override background agar sama seperti dashboard siswa ══════════════════ */
+  html, body {
+    background: #bfdbfe !important;
+    background-image: none !important;
+  }
+  footer,
+  body > footer {
+    background: #ffff !important;
+    background-image: none !important;
+  }
+</style>
+
 <div class="mb-6">
   <h1 class="text-2xl font-bold">Riwayat Peminjaman</h1>
   <p class="text-sm text-slate-500">Semua transaksi peminjaman milikmu.</p>

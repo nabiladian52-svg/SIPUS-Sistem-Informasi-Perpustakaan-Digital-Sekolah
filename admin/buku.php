@@ -16,6 +16,8 @@
  *  - fetchAll() dipaksa pakai PDO::FETCH_ASSOC supaya hasil JSON konsisten.
  *  - JS: error pada fetch() tidak lagi dibungkam diam-diam, sekarang di-log ke console
  *    supaya mudah didiagnosis kalau request AJAX gagal.
+ *  - Popup konfirmasi hapus sekarang memakai modal custom (senada dengan modal
+ *    "Konfirmasi Peminjaman" di sisi siswa), menggantikan confirm() bawaan browser.
  */
 declare(strict_types=1);
 
@@ -232,12 +234,26 @@ if (isset($_GET['ajax'])) {
 $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
 ?>
 
-<!-- ══════════ Background aesthetic, senada dengan dashboard.php ══════════ -->
-<div class="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
-  <div class="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-indigo-300/30 blur-3xl"></div>
-  <div class="absolute top-1/3 -right-20 h-80 w-80 rounded-full bg-sky-300/30 blur-3xl"></div>
-  <div class="absolute -bottom-24 left-1/3 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl"></div>
-</div>
+<style>
+  /* Background solid biru muda — disamakan dengan dashboard, peminjaman, dan anggota */
+  html {
+    height: 100%;
+    background: #bfdbfe !important;
+  }
+  body {
+    min-height: 100%;
+    background: #bfdbfe !important;
+  }
+
+  /* Navbar semi-transparan agar menyatu dengan background */
+  body > nav,
+  nav.bg-white,
+  header nav {
+    background: rgba(255, 255, 255, 0.55) !important;
+    background-image: none !important;
+    backdrop-filter: blur(6px);
+  }
+</style>
 
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
   <div>
@@ -269,7 +285,7 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
 
 <div class="grid gap-6 lg:grid-cols-3">
   <!-- Form tambah/edit -->
-  <div class="h-fit rounded-xl bg-white/70 p-5 shadow-sm ring-1 ring-slate-200 backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+  <div class="h-fit rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition-all duration-300 hover:shadow-lg">
     <h2 class="mb-4 font-semibold text-slate-800"><?= e($judulForm) ?></h2>
     <form method="post" action="buku.php" class="space-y-3">
       <input type="hidden" name="aksi" value="simpan">
@@ -322,13 +338,13 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
   </div>
 
   <!-- Tabel daftar buku -->
-  <div class="overflow-hidden rounded-xl bg-white/70 shadow-sm ring-1 ring-slate-200 backdrop-blur-md lg:col-span-2">
+  <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 lg:col-span-2">
     <div class="border-b border-slate-100 px-5 py-4">
       <h2 class="font-semibold text-slate-800">Daftar Buku <span id="jumlah-buku" class="text-sm font-normal text-slate-400">(<?= count($daftarBuku) ?>)</span></h2>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-left text-sm">
-        <thead class="bg-slate-50/80 text-xs uppercase tracking-wide text-slate-500">
+        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <th class="px-4 py-3">No. Buku</th>
             <th class="px-4 py-3">Judul</th>
@@ -364,10 +380,10 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
                 <div class="flex justify-end gap-2">
                   <a href="buku.php?edit=<?= (int) $buku['id_buku'] ?>"
                      class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Edit</a>
-                  <form method="post" action="buku.php" onsubmit="return confirm('Hapus buku ini?');">
+                  <form method="post" action="buku.php" class="form-hapus">
                     <input type="hidden" name="aksi" value="hapus">
                     <input type="hidden" name="id_buku" value="<?= (int) $buku['id_buku'] ?>">
-                    <button class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
+                    <button type="button" class="btn-hapus rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100" data-judul="<?= e($buku['judul']) ?>">Hapus</button>
                   </form>
                 </div>
               </td>
@@ -375,6 +391,28 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Modal Konfirmasi Hapus (custom, senada dengan modal konfirmasi di sisi siswa) ══════════ -->
+<div id="modal-hapus" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl">
+    <div class="bg-gradient-to-br from-indigo-600 to-indigo-500 px-6 py-8 text-center text-white">
+      <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/20">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0-1 13a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7h12z" />
+        </svg>
+      </div>
+      <p class="text-xs font-semibold uppercase tracking-wider text-indigo-100">Konfirmasi Hapus</p>
+    </div>
+    <div class="px-6 py-6 text-center">
+      <h3 id="modal-hapus-judul" class="mb-2 text-base font-semibold text-slate-800">Buku ini</h3>
+      <p class="mb-6 text-sm text-slate-500">Buku akan dihapus secara permanen. Yakin mau lanjut?</p>
+      <div class="flex gap-3">
+        <button type="button" id="modal-hapus-batal" class="flex-1 rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Batal</button>
+        <button type="button" id="modal-hapus-konfirmasi" class="flex-1 rounded-lg bg-rose-600 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">Ya, Hapus</button>
+      </div>
     </div>
   </div>
 </div>
@@ -387,6 +425,10 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
       buku.php?ajax=1&q=... dan merender ulang tabel TANPA reload halaman.
    2. Submit form pencarian (tombol "Cari"/Enter) juga dialihkan lewat AJAX.
    3. Notifikasi sukses (hijau) otomatis memudar & hilang setelah beberapa detik.
+   4. Konfirmasi hapus memakai modal custom (bukan confirm() bawaan browser),
+      supaya senada dengan modal "Konfirmasi Peminjaman" di sisi siswa.
+      Delegasi event dipakai supaya tombol "Hapus" pada baris hasil AJAX
+      (live search) juga otomatis terhubung ke modal ini.
 
    FIX: error pada fetch() sekarang di-log ke console.error, tidak lagi
    dibungkam diam-diam, supaya kegagalan AJAX mudah didiagnosis.
@@ -439,17 +481,47 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
     tdStatus.className = 'px-4 py-3';
     tdStatus.innerHTML = badgeStatus(buku.status);
 
+    // Kolom Aksi dibangun lewat DOM API (bukan innerHTML string) supaya
+    // atribut data-judul aman menampung judul buku apa pun (mis. ada tanda kutip).
     var tdAksi = document.createElement('td');
     tdAksi.className = 'px-4 py-3';
-    tdAksi.innerHTML =
-      '<div class="flex justify-end gap-2">' +
-        '<a href="buku.php?edit=' + encodeURIComponent(buku.id_buku) + '" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Edit</a>' +
-        '<form method="post" action="buku.php" onsubmit="return confirm(\'Hapus buku ini?\');">' +
-          '<input type="hidden" name="aksi" value="hapus">' +
-          '<input type="hidden" name="id_buku" value="' + buku.id_buku + '">' +
-          '<button class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>' +
-        '</form>' +
-      '</div>';
+
+    var wrapAksi = document.createElement('div');
+    wrapAksi.className = 'flex justify-end gap-2';
+
+    var linkEdit = document.createElement('a');
+    linkEdit.href = 'buku.php?edit=' + encodeURIComponent(buku.id_buku);
+    linkEdit.className = 'rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100';
+    linkEdit.textContent = 'Edit';
+
+    var formHapus = document.createElement('form');
+    formHapus.method = 'post';
+    formHapus.action = 'buku.php';
+    formHapus.className = 'form-hapus';
+
+    var inputAksi = document.createElement('input');
+    inputAksi.type = 'hidden';
+    inputAksi.name = 'aksi';
+    inputAksi.value = 'hapus';
+
+    var inputId = document.createElement('input');
+    inputId.type = 'hidden';
+    inputId.name = 'id_buku';
+    inputId.value = buku.id_buku;
+
+    var btnHapus = document.createElement('button');
+    btnHapus.type = 'button';
+    btnHapus.className = 'btn-hapus rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100';
+    btnHapus.textContent = 'Hapus';
+    btnHapus.setAttribute('data-judul', buku.judul);
+
+    formHapus.appendChild(inputAksi);
+    formHapus.appendChild(inputId);
+    formHapus.appendChild(btnHapus);
+
+    wrapAksi.appendChild(linkEdit);
+    wrapAksi.appendChild(formHapus);
+    tdAksi.appendChild(wrapAksi);
 
     tr.appendChild(tdNomor);
     tr.appendChild(tdJudul);
@@ -532,6 +604,53 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
       setTimeout(function () { alertNotice.remove(); }, 700);
     }, 3500);
   }
+
+  // ════ Modal konfirmasi hapus (custom, menggantikan confirm() bawaan browser) ════
+  var modalHapus            = document.getElementById('modal-hapus');
+  var modalHapusJudul       = document.getElementById('modal-hapus-judul');
+  var modalHapusBatal       = document.getElementById('modal-hapus-batal');
+  var modalHapusKonfirmasi  = document.getElementById('modal-hapus-konfirmasi');
+  var formHapusAktif        = null;
+
+  function bukaModalHapus(form, judul) {
+    formHapusAktif = form;
+    modalHapusJudul.textContent = judul || 'Buku ini';
+    modalHapus.classList.remove('hidden');
+    modalHapus.classList.add('flex');
+  }
+
+  function tutupModalHapus() {
+    formHapusAktif = null;
+    modalHapus.classList.add('hidden');
+    modalHapus.classList.remove('flex');
+  }
+
+  // Delegasi ke document: tetap berfungsi untuk baris yang dirender ulang oleh AJAX.
+  document.addEventListener('click', function (e) {
+    var tombol = e.target.closest('.btn-hapus');
+    if (!tombol) return;
+    var form = tombol.closest('.form-hapus');
+    if (form) bukaModalHapus(form, tombol.getAttribute('data-judul'));
+  });
+
+  if (modalHapusBatal) {
+    modalHapusBatal.addEventListener('click', tutupModalHapus);
+  }
+  if (modalHapus) {
+    modalHapus.addEventListener('click', function (e) {
+      if (e.target === modalHapus) tutupModalHapus();
+    });
+  }
+  if (modalHapusKonfirmasi) {
+    modalHapusKonfirmasi.addEventListener('click', function () {
+      if (formHapusAktif) formHapusAktif.submit();
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modalHapus && !modalHapus.classList.contains('hidden')) {
+      tutupModalHapus();
+    }
+  });
 })();
 </script>
 

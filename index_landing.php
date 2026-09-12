@@ -379,7 +379,7 @@ if (isset($_SESSION['username']) && isset($_SESSION['role'])) {
 <body>
 
     <nav>
-        <div class="logo">📚 SI<span>PUS</span></div>
+        <div class="logo"> SI<span>PUS</span></div>
         <div class="nav-links">
             <a href="#fitur">Fitur</a>
             <a href="#tentang">Tentang</a>

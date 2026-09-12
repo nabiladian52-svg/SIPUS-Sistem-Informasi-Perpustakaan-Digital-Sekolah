@@ -193,18 +193,142 @@ $stmt->execute();
 $daftarAnggota = $stmt->fetchAll();
 ?>
 
-<!-- ══════════ Background aesthetic, senada dengan dashboard ══════════ -->
-<div class="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
-  <div class="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-indigo-300/30 blur-3xl"></div>
-  <div class="absolute top-1/3 -right-20 h-80 w-80 rounded-full bg-sky-300/30 blur-3xl"></div>
-  <div class="absolute -bottom-24 left-1/3 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl"></div>
-</div>
+<style>
+  /* Background solid biru muda — disamakan dengan dashboard, peminjaman, dan buku */
+  html {
+    height: 100%;
+    background: #bfdbfe !important;
+  }
+  body {
+    min-height: 100%;
+    background: #bfdbfe !important;
+  }
+
+  /* Navbar semi-transparan agar menyatu dengan background */
+  body > nav,
+  nav.bg-white,
+  header nav {
+    background: rgba(255, 255, 255, 0.55) !important;
+    background-image: none !important;
+    backdrop-filter: blur(6px);
+  }
+
+  /* ══════════════════ Popup konfirmasi hapus anggota (custom) ══════════════════ */
+  .hapus-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    animation: hapusFadeIn .18s ease-out;
+  }
+  .hapus-overlay.is-open { display: flex; }
+
+  .hapus-card {
+    width: 100%;
+    max-width: 380px;
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 20px 45px -10px rgba(30, 41, 59, 0.35);
+    overflow: hidden;
+    animation: hapusPopIn .22s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  .hapus-card__banner {
+    background: linear-gradient(135deg, #fb7185 0%, #be123c 100%);
+    padding: 1.75rem 1.5rem 1.5rem;
+    text-align: center;
+    color: #fff;
+    position: relative;
+  }
+  .hapus-card__banner::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  }
+  .hapus-card__icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto .75rem;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hapus-card__icon svg { width: 28px; height: 28px; }
+
+  .hapus-card__title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .hapus-card__body {
+    padding: 1.25rem 1.5rem 1.5rem;
+    text-align: center;
+  }
+  .hapus-card__judul {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+    margin-bottom: .35rem;
+  }
+  .hapus-card__sub {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 1.4rem;
+  }
+
+  .hapus-card__actions {
+    display: flex;
+    gap: .6rem;
+  }
+  .hapus-card__actions button {
+    flex: 1;
+    border-radius: 12px;
+    padding: .65rem 1rem;
+    font-size: .875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    border: none;
+  }
+  .hapus-btn-batal {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .hapus-btn-batal:hover { background: #e2e8f0; }
+
+  .hapus-btn-ok {
+    background: linear-gradient(135deg, #fb7185 0%, #be123c 100%);
+    color: #fff;
+    box-shadow: 0 8px 16px -4px rgba(190, 18, 60, .55);
+  }
+  .hapus-btn-ok:hover { transform: translateY(-1px); box-shadow: 0 10px 20px -4px rgba(190, 18, 60, .65); }
+  .hapus-btn-ok:active { transform: translateY(0); }
+
+  @keyframes hapusFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes hapusPopIn {
+    from { opacity: 0; transform: scale(.92) translateY(6px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+</style>
 
 <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
   <div class="flex items-start gap-3">
-    <span class="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-sm">
-      👥
-    </span>
     <div>
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-bold text-slate-800">Data Anggota</h1>
@@ -213,16 +337,13 @@ $daftarAnggota = $stmt->fetchAll();
     </div>
   </div>
 
-  <!-- Search bar dengan saran (live search) -->
-  <div class="relative w-full sm:w-72" id="searchWrap">
+  <!-- Search bar dengan saran (live search) disesuaikan persis seperti Data Buku -->
+  <div class="relative w-full sm:w-80" id="searchWrap">
     <div class="flex gap-2">
       <div class="relative flex-1">
-        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.35 4.35a7.5 7.5 0 0012.3 12.3z" />
-        </svg>
         <input type="text" id="liveSearch" autocomplete="off" value="<?= e($keyword) ?>"
-               placeholder="Cari nama / kelas / nomor..."
-               class="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               placeholder="Cari judul / penulis / nomor..."
+               class="w-full rounded-lg border border-slate-200 bg-white/80 py-2 px-3 text-sm outline-none transition focus:border-[#5252ea] focus:bg-white focus:ring-2 focus:ring-indigo-100">
         <!-- Dropdown saran nama -->
         <div id="searchSuggestions"
              class="absolute z-20 mt-1 hidden w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"></div>
@@ -230,6 +351,9 @@ $daftarAnggota = $stmt->fetchAll();
       <button type="button" id="resetSearch"
               class="hidden shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
         Reset
+      </button>
+      <button type="button" class="rounded-lg bg-[#5252ea] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4343d6]">
+        Cari
       </button>
     </div>
     <p class="mt-1 text-xs text-slate-400"><span id="searchCount"><?= count($daftarAnggota) ?></span> anggota ditemukan</p>
@@ -248,9 +372,9 @@ $daftarAnggota = $stmt->fetchAll();
 <?php endif; ?>
 
 <div class="grid gap-6 lg:grid-cols-3">
-  <!-- Form -->
-  <div class="h-fit overflow-hidden rounded-2xl bg-white/70 shadow-sm ring-1 ring-slate-200 backdrop-blur-md">
-    <div class="border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/80 px-5 py-4">
+  <!-- Form Tambah/Edit -->
+  <div class="h-fit overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+    <div class="border-b border-slate-100 bg-white px-5 py-4">
       <h2 class="font-semibold text-slate-800"><?= $form['id_anggota'] > 0 ? 'Edit Anggota' : 'Tambah Anggota' ?></h2>
     </div>
     <form method="post" action="anggota.php" class="space-y-3 p-5" id="formAnggota">
@@ -261,24 +385,24 @@ $daftarAnggota = $stmt->fetchAll();
         <label class="mb-1 block text-xs font-medium text-slate-600">Nomor Anggota *</label>
         <input type="text" name="nomor_anggota" required maxlength="20" value="<?= e($form['nomor_anggota']) ?>"
                placeholder="cth: AG003"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Nama Lengkap *</label>
         <input type="text" name="nama" required maxlength="100" value="<?= e($form['nama']) ?>"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Kelas *</label>
         <input type="text" name="kelas" required maxlength="50" value="<?= e($form['kelas']) ?>"
                placeholder="cth: XI RPL 1"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Username (untuk login) *</label>
         <input type="text" name="username" required maxlength="50" value="<?= e($form['username']) ?>"
                placeholder="cth: siswa03" pattern="[A-Za-z0-9_.]{3,50}"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">
@@ -286,25 +410,25 @@ $daftarAnggota = $stmt->fetchAll();
         </label>
         <input type="password" name="password" minlength="6" maxlength="100"
                <?= $form['id_anggota'] > 0 ? '' : 'required' ?> autocomplete="new-password"
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
         <p class="mt-1 text-xs text-slate-400">Disimpan ter-hash dengan Bcrypt.</p>
       </div>
 
-      <div class="flex gap-2 pt-1">
+      <div class="flex gap-2 pt-2">
         <button type="submit" id="btnSubmit"
-                class="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
+                class="flex-1 rounded-lg bg-[#5252ea] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4343d6] disabled:cursor-not-allowed disabled:opacity-60">
           <?= $form['id_anggota'] > 0 ? 'Perbarui' : 'Tambah' ?>
         </button>
         <?php if ($form['id_anggota'] > 0): ?>
-          <a href="anggota.php" class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Batal</a>
+          <a href="anggota.php" class="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50">Batal</a>
         <?php endif; ?>
       </div>
     </form>
   </div>
 
   <!-- Tabel (desktop) + kartu (mobile) -->
-  <div class="overflow-hidden rounded-2xl bg-white/70 shadow-sm ring-1 ring-slate-200 backdrop-blur-md lg:col-span-2">
-    <div class="border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/80 px-5 py-4">
+  <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 lg:col-span-2">
+    <div class="border-b border-slate-100 bg-white px-5 py-4">
       <h2 class="font-semibold text-slate-800">Daftar Anggota <span class="text-sm font-normal text-slate-400">(<?= count($daftarAnggota) ?>)</span></h2>
     </div>
 
@@ -327,12 +451,12 @@ $daftarAnggota = $stmt->fetchAll();
                 data-search="<?= e(mb_strtolower($ag['nama'] . ' ' . $ag['nomor_anggota'] . ' ' . $ag['kelas'] . ' ' . $ag['username'])) ?>"
                 data-nama="<?= e($ag['nama']) ?>">
               <td class="px-4 py-3 font-mono text-xs"><?= e($ag['nomor_anggota']) ?></td>
-              <td class="px-4 py-3 font-medium"><?= e($ag['nama']) ?></td>
-              <td class="px-4 py-3"><?= e($ag['kelas']) ?></td>
+              <td class="px-4 py-3 font-medium text-slate-800"><?= e($ag['nama']) ?></td>
+              <td class="px-4 py-3 text-slate-600"><?= e($ag['kelas']) ?></td>
               <td class="px-4 py-3 text-slate-500"><?= e($ag['username']) ?></td>
               <td class="px-4 py-3">
                 <?php if ((int) $ag['aktif'] > 0): ?>
-                  <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700"><?= (int) $ag['aktif'] ?> buku</span>
+                  <span class="inline-block rounded-md bg-amber-100/70 px-2.5 py-1 text-xs font-semibold text-amber-700"><?= (int) $ag['aktif'] ?> dipinjam</span>
                 <?php else: ?>
                   <span class="text-xs text-slate-400">Tidak ada</span>
                 <?php endif; ?>
@@ -340,11 +464,11 @@ $daftarAnggota = $stmt->fetchAll();
               <td class="px-4 py-3">
                 <div class="flex justify-end gap-2">
                   <a href="anggota.php?edit=<?= (int) $ag['id_anggota'] ?>"
-                     class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Edit</a>
-                  <form method="post" action="anggota.php" onsubmit="return confirm('Hapus anggota ini? Akun loginnya juga akan terhapus.');">
+                     class="rounded-md bg-[#eef2ff] px-3 py-1 text-xs font-medium text-[#6366f1] transition hover:bg-indigo-100">Edit</a>
+                  <form method="post" action="anggota.php" class="form-hapus" data-nama="<?= e($ag['nama']) ?>">
                     <input type="hidden" name="aksi" value="hapus">
                     <input type="hidden" name="id_anggota" value="<?= (int) $ag['id_anggota'] ?>">
-                    <button class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
+                    <button type="submit" class="rounded-md bg-[#fff1f2] px-3 py-1 text-xs font-medium text-[#f43f5e] transition hover:bg-rose-100">Hapus</button>
                   </form>
                 </div>
               </td>
@@ -367,18 +491,18 @@ $daftarAnggota = $stmt->fetchAll();
               <p class="mt-0.5 text-xs text-slate-500">@<?= e($ag['username']) ?></p>
             </div>
             <?php if ((int) $ag['aktif'] > 0): ?>
-              <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700"><?= (int) $ag['aktif'] ?> buku</span>
+              <span class="shrink-0 rounded-md bg-amber-100/70 px-2.5 py-1 text-xs font-semibold text-amber-700"><?= (int) $ag['aktif'] ?> dipinjam</span>
             <?php else: ?>
               <span class="shrink-0 text-xs text-slate-400">Tidak ada</span>
             <?php endif; ?>
           </div>
           <div class="mt-3 flex gap-2">
             <a href="anggota.php?edit=<?= (int) $ag['id_anggota'] ?>"
-               class="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-center text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Edit</a>
-            <form method="post" action="anggota.php" class="flex-1" onsubmit="return confirm('Hapus anggota ini? Akun loginnya juga akan terhapus.');">
+               class="flex-1 rounded-md bg-[#eef2ff] px-3 py-1.5 text-center text-xs font-medium text-[#6366f1] transition hover:bg-indigo-100">Edit</a>
+            <form method="post" action="anggota.php" class="form-hapus flex-1" data-nama="<?= e($ag['nama']) ?>">
               <input type="hidden" name="aksi" value="hapus">
               <input type="hidden" name="id_anggota" value="<?= (int) $ag['id_anggota'] ?>">
-              <button class="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
+              <button type="submit" class="w-full rounded-md bg-[#fff1f2] px-3 py-1.5 text-xs font-medium text-[#f43f5e] transition hover:bg-rose-100">Hapus</button>
             </form>
           </div>
         </div>
@@ -388,6 +512,29 @@ $daftarAnggota = $stmt->fetchAll();
     <!-- Pesan kosong (muncul saat hasil pencarian nihil) -->
     <div id="emptyState" class="hidden px-4 py-10 text-center text-slate-400">
       Tidak ada anggota yang cocok dengan pencarian.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ Popup konfirmasi hapus anggota (custom, menggantikan confirm() bawaan) ══════════════════ -->
+<div id="hapusOverlay" class="hapus-overlay" role="dialog" aria-modal="true" aria-labelledby="hapusJudul">
+  <div class="hapus-card">
+    <div class="hapus-card__banner">
+      <div class="hapus-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+      </div>
+      <div class="hapus-card__title">Konfirmasi Hapus</div>
+    </div>
+    <div class="hapus-card__body">
+      <div id="hapusJudul" class="hapus-card__judul">&mdash;</div>
+      <div class="hapus-card__sub">Akun login anggota ini akan ikut terhapus. Tindakan ini tidak bisa dibatalkan.</div>
+      <div class="hapus-card__actions">
+        <button type="button" class="hapus-btn-batal" id="hapusBatal">Batal</button>
+        <button type="button" class="hapus-btn-ok" id="hapusOk">Ya, Hapus</button>
+      </div>
     </div>
   </div>
 </div>
@@ -502,6 +649,46 @@ $daftarAnggota = $stmt->fetchAll();
       btnSubmit.textContent = 'Menyimpan...';
     });
   }
+
+  // ══════════════════ Popup konfirmasi hapus (custom, menggantikan confirm()) ══════════════════
+  const hapusOverlay = document.getElementById('hapusOverlay');
+  const hapusJudulEl = document.getElementById('hapusJudul');
+  const hapusBtnOk    = document.getElementById('hapusOk');
+  const hapusBtnBatal = document.getElementById('hapusBatal');
+  let formHapusAktif  = null;
+
+  function bukaHapusPopup(form) {
+    formHapusAktif = form;
+    hapusJudulEl.textContent = form.getAttribute('data-nama') || 'anggota ini';
+    hapusOverlay.classList.add('is-open');
+  }
+  function tutupHapusPopup() {
+    hapusOverlay.classList.remove('is-open');
+    formHapusAktif = null;
+  }
+
+  document.querySelectorAll('form.form-hapus').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      bukaHapusPopup(form);
+    });
+  });
+
+  hapusBtnOk.addEventListener('click', () => {
+    if (formHapusAktif) {
+      const f = formHapusAktif;
+      tutupHapusPopup();
+      f.submit();
+    }
+  });
+  hapusBtnBatal.addEventListener('click', tutupHapusPopup);
+
+  hapusOverlay.addEventListener('click', (e) => {
+    if (e.target === hapusOverlay) tutupHapusPopup();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && hapusOverlay.classList.contains('is-open')) tutupHapusPopup();
+  });
 })();
 </script>
 

@@ -123,16 +123,16 @@ $daftarBuku = $stmt->fetchAll();
 ?>
 
 <style>
-  /* Background gradasi biru — sama persis seperti halaman login & dashboard siswa */
+  /* Background solid biru muda — sama persis seperti halaman dashboard siswa */
   html {
     height: 100%;
-    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+    background: #bfdbfe !important;
   }
   body {
     min-height: 100%;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, #eef2ff 0%, #dbeafe 45%, #bfdbfe 100%) !important;
+    background: #bfdbfe !important;
   }
 
   /* Navbar semi-transparan agar menyatu dengan gradasi */
@@ -164,6 +164,169 @@ $daftarBuku = $stmt->fetchAll();
   footer a {
     color: #1e40af !important;
   }
+
+  /* ══════════════════ Popup konfirmasi pinjam (custom) ══════════════════ */
+  .pinjam-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    animation: pinjamFadeIn .18s ease-out;
+  }
+  .pinjam-overlay.is-open { display: flex; }
+
+  .pinjam-card {
+    width: 100%;
+    max-width: 380px;
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 20px 45px -10px rgba(30, 41, 59, 0.35);
+    overflow: hidden;
+    animation: pinjamPopIn .22s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  .pinjam-card__banner {
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    padding: 1.75rem 1.5rem 1.5rem;
+    text-align: center;
+    color: #fff;
+    position: relative;
+  }
+  .pinjam-card__banner::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  }
+  .pinjam-card__icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto .75rem;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pinjam-card__icon svg { width: 28px; height: 28px; }
+
+  .pinjam-card__body {
+    padding: 1.25rem 1.5rem 1.5rem;
+    text-align: center;
+  }
+  .pinjam-card__title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #818cf8;
+    margin-bottom: .35rem;
+  }
+  .pinjam-card__judul {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+    margin-bottom: .35rem;
+  }
+  .pinjam-card__sub {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 1.4rem;
+  }
+
+  .pinjam-card__actions {
+    display: flex;
+    gap: .6rem;
+  }
+  .pinjam-card__actions button {
+    flex: 1;
+    border-radius: 12px;
+    padding: .65rem 1rem;
+    font-size: .875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    border: none;
+  }
+  .pinjam-btn-batal {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .pinjam-btn-batal:hover { background: #e2e8f0; }
+
+  .pinjam-btn-ok {
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    color: #fff;
+    box-shadow: 0 8px 16px -4px rgba(79, 70, 229, .55);
+  }
+  .pinjam-btn-ok:hover { transform: translateY(-1px); box-shadow: 0 10px 20px -4px rgba(79, 70, 229, .65); }
+  .pinjam-btn-ok:active { transform: translateY(0); }
+
+  @keyframes pinjamFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes pinjamPopIn {
+    from { opacity: 0; transform: scale(.92) translateY(6px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* ══════════════════ Alert box (notice sukses & error) ══════════════════ */
+  .alert-box {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    border-radius: 14px;
+    padding: .9rem 1.1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 8px 20px -8px rgba(15, 23, 42, .15);
+    animation: alertSlideIn .25s cubic-bezier(.34,1.2,.64,1);
+  }
+  .alert-box__icon {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .alert-box__icon svg { width: 18px; height: 18px; }
+  .alert-box__content {
+    flex: 1;
+    padding-top: .2rem;
+    font-size: .875rem;
+    line-height: 1.5;
+  }
+  .alert-box__content ul { margin: 0; padding-left: 1.1rem; }
+  .alert-box__content li + li { margin-top: .2rem; }
+
+  .alert-box--success {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #a7f3d0;
+  }
+  .alert-box--success .alert-box__icon { background: #10b981; }
+  .alert-box--success .alert-box__content { color: #065f46; font-weight: 500; }
+
+  .alert-box--error {
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+    border: 1px solid #fecdd3;
+  }
+  .alert-box--error .alert-box__icon { background: #f43f5e; }
+  .alert-box--error .alert-box__content { color: #9f1239; }
+
+  @keyframes alertSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 </style>
 
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -182,13 +345,29 @@ $daftarBuku = $stmt->fetchAll();
 </div>
 
 <?php if ($notice !== ''): ?>
-  <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"><?= e($notice) ?></div>
+  <div class="alert-box alert-box--success">
+    <div class="alert-box__icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+    <div class="alert-box__content"><?= e($notice) ?></div>
+  </div>
 <?php endif; ?>
 <?php if (!empty($errors)): ?>
-  <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-    <ul class="list-inside list-disc">
-      <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
-    </ul>
+  <div class="alert-box alert-box--error">
+    <div class="alert-box__icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"></circle>
+        <line x1="12" y1="8" x2="12" y2="12.5"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+    </div>
+    <div class="alert-box__content">
+      <ul class="list-disc">
+        <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
+      </ul>
+    </div>
   </div>
 <?php endif; ?>
 
@@ -224,10 +403,10 @@ $daftarBuku = $stmt->fetchAll();
            class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-medium text-slate-600 hover:bg-slate-50">Detail</a>
 
         <?php if ($stokBuku > 0): ?>
-          <form method="post" action="daftar_buku.php" onsubmit="return confirm('Pinjam buku <?= e($buku['judul']) ?>?');">
+          <form method="post" action="daftar_buku.php" class="form-pinjam" data-judul="<?= e($buku['judul']) ?>">
             <input type="hidden" name="aksi" value="pinjam">
             <input type="hidden" name="id_buku" value="<?= (int) $buku['id_buku'] ?>">
-            <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Pinjam</button>
+            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Pinjam</button>
           </form>
         <?php else: ?>
           <button disabled class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-400">Pinjam</button>
@@ -236,5 +415,71 @@ $daftarBuku = $stmt->fetchAll();
     </div>
   <?php endforeach; ?>
 </div>
+
+<!-- ══════════════════ Popup konfirmasi pinjam (custom, menggantikan confirm() bawaan) ══════════════════ -->
+<div id="pinjamOverlay" class="pinjam-overlay" role="dialog" aria-modal="true" aria-labelledby="pinjamJudul">
+  <div class="pinjam-card">
+    <div class="pinjam-card__banner">
+      <div class="pinjam-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      </div>
+      <div class="pinjam-card__title">Konfirmasi Peminjaman</div>
+    </div>
+    <div class="pinjam-card__body">
+      <div id="pinjamJudul" class="pinjam-card__judul">&mdash;</div>
+      <div class="pinjam-card__sub">Buku akan dicatat sebagai pinjaman kamu. Yakin mau lanjut?</div>
+      <div class="pinjam-card__actions">
+        <button type="button" class="pinjam-btn-batal" id="pinjamBatal">Batal</button>
+        <button type="button" class="pinjam-btn-ok" id="pinjamOk">Ya, Pinjam</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var overlay   = document.getElementById('pinjamOverlay');
+    var judulEl   = document.getElementById('pinjamJudul');
+    var btnOk     = document.getElementById('pinjamOk');
+    var btnBatal  = document.getElementById('pinjamBatal');
+    var formAktif = null;
+
+    function bukaPopup(form) {
+      formAktif = form;
+      judulEl.textContent = form.getAttribute('data-judul') || 'buku ini';
+      overlay.classList.add('is-open');
+    }
+    function tutupPopup() {
+      overlay.classList.remove('is-open');
+      formAktif = null;
+    }
+
+    document.querySelectorAll('form.form-pinjam').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        bukaPopup(form);
+      });
+    });
+
+    btnOk.addEventListener('click', function () {
+      if (formAktif) {
+        var f = formAktif;
+        tutupPopup();
+        f.submit();
+      }
+    });
+    btnBatal.addEventListener('click', tutupPopup);
+
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) tutupPopup();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('is-open')) tutupPopup();
+    });
+  })();
+</script>
 
 <?php require __DIR__ . '/../includes/footer.php'; ?>

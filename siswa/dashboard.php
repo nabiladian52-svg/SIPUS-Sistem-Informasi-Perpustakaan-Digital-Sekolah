@@ -57,6 +57,15 @@ $pinjamanAktif = $stmtAktif->fetchAll();
     background: linear-gradient(180deg, #bfdbfe 0%, #dbeafe 45%, #bfdbfe 100%) !important;
   }
 
+  /* Navbar semi-transparan agar menyatu dengan background — sama seperti daftar_buku.php */
+  body > nav,
+  nav.bg-white,
+  header nav {
+    background: rgba(255, 255, 255, 0.55) !important;
+    background-image: none !important;
+    backdrop-filter: blur(6px);
+  }
+
   /* Konten utama mengisi ruang kosong agar footer terdorong ke bawah viewport */
   body > main,
   body > .flex-1,
@@ -73,7 +82,7 @@ $pinjamanAktif = $stmtAktif->fetchAll();
     background-image: linear-gradient(180deg, #ffffff 0%, #ffffff 100%) !important;
     color: #1e3a8a !important;
   }
-  footer a {
+  footer a  
     color: #1e40af !important;
   }
 </style>

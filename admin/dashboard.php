@@ -95,14 +95,26 @@ function sipusInisial(string $nama): string
 }
 ?>
 
-<!-- ══════════ Background aesthetic, senada dengan halaman login (tidak diubah) ══════════ -->
-<div class="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
-  <div class="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-indigo-300/30 blur-3xl"></div>
-  <div class="absolute top-1/3 -right-20 h-80 w-80 rounded-full bg-sky-300/30 blur-3xl"></div>
-  <div class="absolute -bottom-24 left-1/3 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl"></div>
-</div>
-
 <style>
+  /* Background solid biru muda — disamakan dengan halaman peminjaman, buku, dan anggota */
+  html {
+    height: 100%;
+    background: #bfdbfe !important;
+  }
+  body {
+    min-height: 100%;
+    background: #bfdbfe !important;
+  }
+
+  /* Navbar semi-transparan agar menyatu dengan background */
+  body > nav,
+  nav.bg-white,
+  header nav {
+    background: rgba(255, 255, 255, 0.55) !important;
+    background-image: none !important;
+    backdrop-filter: blur(6px);
+  }
+
   /* Ikon SVG di dalam badge kartu statistik */
   .stat-icon svg {
     width: 1.15rem;
@@ -126,14 +138,14 @@ function sipusInisial(string $nama): string
   .stat-card.accent-rose::before    { background: #e11d48; }
   .stat-card.accent-slate::before   { background: #475569; }
 
-  /* Avatar inisial anggota pada tabel transaksi */
+  Avatar inisial anggota pada tabel transaksi
   .avatar-inisial {
     display: grid;
     place-items: center;
     width: 2.25rem;
     height: 2.25rem;
     border-radius: 9999px;
-    background: #e0e7ff;
+    background: #fff;
     color: #4338ca;
     font-weight: 700;
     font-size: 0.8rem;
@@ -148,7 +160,7 @@ function sipusInisial(string $nama): string
       width: 100%;
     }
     .tabel-transaksi tr {
-      border: 1px solid #e2e8f0;
+      border: 1px solid #fff;
       border-radius: 0.75rem;
       margin-bottom: 0.75rem;
       padding: 0.75rem 1rem;
@@ -169,7 +181,7 @@ function sipusInisial(string $nama): string
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      color: #94a3b8;
+      color: #fff;
       flex-shrink: 0;
     }
     .tabel-transaksi td.td-anggota { justify-content: flex-start; }
@@ -208,7 +220,7 @@ function sipusInisial(string $nama): string
   <?php foreach ($cards as $card): ?>
     <div
       id="card-<?= $card['key'] ?>"
-      class="stat-card <?= $accentMap[$card['color']] ?? '' ?> group rounded-xl bg-white/70 p-4 shadow-sm ring-1 ring-slate-200 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+      class="stat-card <?= $accentMap[$card['color']] ?? '' ?> group rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
     >
       <span class="stat-icon mb-3 grid h-9 w-9 place-items-center rounded-lg <?= $card['color'] ?> text-white transition-transform duration-300 group-hover:scale-110"><?= $card['icon'] ?></span>
       <p
@@ -222,14 +234,14 @@ function sipusInisial(string $nama): string
 </div>
 
 <!-- Transaksi terbaru -->
-<div class="mt-8 overflow-hidden rounded-xl bg-white/70 shadow-sm ring-1 ring-slate-200 backdrop-blur-md">
+<div class="mt-8 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
   <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
     <h2 class="font-semibold text-slate-800">Transaksi Terbaru</h2>
     <a href="peminjaman.php" class="text-sm font-medium text-indigo-600 hover:underline">Lihat semua &rarr;</a>
   </div>
   <div class="overflow-x-auto p-2 sm:p-0">
     <table class="tabel-transaksi w-full text-left text-sm">
-      <thead class="bg-slate-50/80 text-xs uppercase tracking-wide text-slate-500">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
         <tr>
           <th class="px-5 py-3">Anggota</th>
           <th class="px-5 py-3">Buku</th>
