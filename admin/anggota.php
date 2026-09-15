@@ -19,7 +19,7 @@ $pdo    = db();
 $errors = [];
 $notice = '';
 
-// ── Daftar kelas yang diizinkan (dipakai untuk render dropdown & validasi server-side) ──
+// ── Daftar kelas untuk SARAN datalist (kelas kini boleh diketik manual juga) ──
 $daftarKelas = ['X TKJ', 'XI TKJ', 'XII TKJ', 'X RPL', 'XI RPL', 'XII RPL', 'Staff/Admin'];
 
 // ── Daftar role yang diizinkan (dipakai untuk render dropdown & validasi server-side) ──
@@ -71,9 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($form['nama'] === '' || mb_strlen($form['nama']) > 100) {
             $errors[] = 'Nama wajib diisi (maks 100 karakter).';
         }
-        // Kelas wajib salah satu dari daftar dropdown yang diizinkan (bukan input bebas)
-        if (!in_array($form['kelas'], $daftarKelas, true)) {
-            $errors[] = 'Kelas wajib dipilih dari daftar yang tersedia.';
+        // Kelas: boleh dipilih dari saran (datalist) ATAU diketik manual bebas,
+        // jadi validasinya bukan lagi in_array ke daftar tetap, melainkan format umum.
+        if ($form['kelas'] === '' || mb_strlen($form['kelas']) > 50) {
+            $errors[] = 'Kelas wajib diisi (maks 50 karakter).';
+        } elseif (!preg_match('/^[\p{L}\p{N}\s\/\-\.]+$/u', $form['kelas'])) {
+            $errors[] = 'Kelas hanya boleh berisi huruf, angka, spasi, titik, strip, dan garis miring.';
         }
         if (!preg_match('/^[a-zA-Z0-9_.]{3,50}$/', $form['username'])) {
             $errors[] = 'Username wajib 3-50 karakter (huruf/angka/titik/garis bawah).';
@@ -415,13 +418,18 @@ $daftarAnggota = $stmt->fetchAll();
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Kelas *</label>
-        <select name="kelas" required
-                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
-          <option value="" disabled <?= $form['kelas'] === '' ? 'selected' : '' ?>>Pilih kelas...</option>
+        <!-- Combobox: input teks + datalist, sehingga bisa PILIH dari saran ATAU KETIK MANUAL bebas -->
+        <input type="text" name="kelas" list="daftarKelasList" required maxlength="50"
+               value="<?= e($form['kelas']) ?>"
+               placeholder="Pilih dari daftar atau ketik manual..."
+               autocomplete="off"
+               class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
+        <datalist id="daftarKelasList">
           <?php foreach ($daftarKelas as $opsiKelas): ?>
-            <option value="<?= e($opsiKelas) ?>" <?= $form['kelas'] === $opsiKelas ? 'selected' : '' ?>><?= e($opsiKelas) ?></option>
+            <option value="<?= e($opsiKelas) ?>">
           <?php endforeach; ?>
-        </select>
+        </datalist>
+        <p class="mt-1 text-xs text-slate-400">Ketik untuk melihat saran, atau isi kelas baru secara bebas.</p>
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Username (untuk login) *</label>
