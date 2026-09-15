@@ -1,7 +1,7 @@
 <?php
 /**
  * SIPUS - CRUD Anggota (Admin).
- * Menambah anggota otomatis membuat akun `users` role 'siswa'
+ * Menambah anggota otomatis membuat akun `users` role sesuai pilihan (siswa/admin)
  * dalam SATU transaksi PDO (beginTransaction/commit) agar data sinkron.
  */
 declare(strict_types=1);
@@ -19,7 +19,13 @@ $pdo    = db();
 $errors = [];
 $notice = '';
 
-$form = ['id_anggota' => 0, 'nomor_anggota' => '', 'nama' => '', 'kelas' => '', 'username' => ''];
+// ── Daftar kelas yang diizinkan (dipakai untuk render dropdown & validasi server-side) ──
+$daftarKelas = ['X TKJ', 'XI TKJ', 'XII TKJ', 'X RPL', 'XI RPL', 'XII RPL', 'Staff/Admin'];
+
+// ── Daftar role yang diizinkan (dipakai untuk render dropdown & validasi server-side) ──
+$daftarRole = ['siswa' => 'User', 'admin' => 'Admin'];
+
+$form = ['id_anggota' => 0, 'nomor_anggota' => '', 'nama' => '', 'kelas' => '', 'username' => '', 'role' => 'siswa'];
 
 // ══════════════════ PROSES POST ══════════════════
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -55,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $form['nama']          = trim((string) ($_POST['nama'] ?? ''));
         $form['kelas']         = trim((string) ($_POST['kelas'] ?? ''));
         $form['username']      = trim((string) ($_POST['username'] ?? ''));
+        $form['role']          = trim((string) ($_POST['role'] ?? ''));
         $password              = (string) ($_POST['password'] ?? '');
 
         // ── Validasi server-side ──
@@ -64,11 +71,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($form['nama'] === '' || mb_strlen($form['nama']) > 100) {
             $errors[] = 'Nama wajib diisi (maks 100 karakter).';
         }
-        if ($form['kelas'] === '' || mb_strlen($form['kelas']) > 50) {
-            $errors[] = 'Kelas wajib diisi (maks 50 karakter).';
+        // Kelas wajib salah satu dari daftar dropdown yang diizinkan (bukan input bebas)
+        if (!in_array($form['kelas'], $daftarKelas, true)) {
+            $errors[] = 'Kelas wajib dipilih dari daftar yang tersedia.';
         }
         if (!preg_match('/^[a-zA-Z0-9_.]{3,50}$/', $form['username'])) {
             $errors[] = 'Username wajib 3-50 karakter (huruf/angka/titik/garis bawah).';
+        }
+        // Role wajib salah satu dari daftar dropdown yang diizinkan (bukan input bebas)
+        if (!array_key_exists($form['role'], $daftarRole)) {
+            $errors[] = 'Role wajib dipilih (User atau Admin).';
         }
 
         // Password: wajib saat tambah; opsional saat edit (kosong = tidak diubah)
@@ -118,6 +130,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->execute([':uBaru' => $form['username'], ':uLama' => $usernameLama]);
                     }
 
+                    // Update role selalu disinkronkan sesuai pilihan pada form
+                    $stmt = $pdo->prepare('UPDATE users SET role = :role WHERE username = :u');
+                    $stmt->execute([':role' => $form['role'], ':u' => $form['username']]);
+
                     // Update password hanya jika diisi
                     if (strlen($password) > 0) {
                         $stmt = $pdo->prepare('UPDATE users SET password = :pw WHERE username = :u');
@@ -134,11 +150,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $notice = 'Data anggota berhasil diperbarui.';
 
                 } else {
-                    // CREATE: buat akun users (role siswa) lalu data anggota
-                    $stmt = $pdo->prepare('INSERT INTO users (username, password, role) VALUES (:u, :pw, "siswa")');
+                    // CREATE: buat akun users (role sesuai pilihan) lalu data anggota
+                    $stmt = $pdo->prepare('INSERT INTO users (username, password, role) VALUES (:u, :pw, :role)');
                     $stmt->execute([
-                        ':u'  => $form['username'],
-                        ':pw' => password_hash($password, PASSWORD_BCRYPT),
+                        ':u'    => $form['username'],
+                        ':pw'   => password_hash($password, PASSWORD_BCRYPT),
+                        ':role' => $form['role'],
                     ]);
 
                     $stmt = $pdo->prepare('INSERT INTO anggota (nomor_anggota, nama, kelas, username)
@@ -151,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $pdo->commit();
-                $form = ['id_anggota' => 0, 'nomor_anggota' => '', 'nama' => '', 'kelas' => '', 'username' => ''];
+                $form = ['id_anggota' => 0, 'nomor_anggota' => '', 'nama' => '', 'kelas' => '', 'username' => '', 'role' => 'siswa'];
 
             } catch (PDOException|RuntimeException $e) {
                 $pdo->rollBack();
@@ -166,7 +183,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_GET['edit'])) {
     $idEdit = filter_var($_GET['edit'], FILTER_VALIDATE_INT);
     if ($idEdit !== false && $idEdit > 0) {
-        $stmt = $pdo->prepare('SELECT * FROM anggota WHERE id_anggota = :id');
+        $stmt = $pdo->prepare('SELECT ag.*, u.role AS role
+                               FROM anggota ag
+                               LEFT JOIN users u ON u.username = ag.username
+                               WHERE ag.id_anggota = :id');
         $stmt->execute([':id' => $idEdit]);
         $row = $stmt->fetch();
         if ($row) {
@@ -176,6 +196,7 @@ if (isset($_GET['edit'])) {
                 'nama'         => $row['nama'],
                 'kelas'        => $row['kelas'],
                 'username'     => $row['username'],
+                'role'         => array_key_exists($row['role'] ?? '', $daftarRole) ? $row['role'] : 'siswa',
             ];
         }
     }
@@ -333,7 +354,7 @@ $daftarAnggota = $stmt->fetchAll();
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-bold text-slate-800">Data Anggota</h1>
       </div>
-      <p class="text-sm text-slate-500">Tambah anggota otomatis membuat akun login role <em>siswa</em>.</p>
+      <p class="text-sm text-slate-500">Tambah anggota otomatis membuat akun login sesuai role yang dipilih.</p>
     </div>
   </div>
 
@@ -394,15 +415,29 @@ $daftarAnggota = $stmt->fetchAll();
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Kelas *</label>
-        <input type="text" name="kelas" required maxlength="50" value="<?= e($form['kelas']) ?>"
-               placeholder="cth: XI RPL 1"
-               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
+        <select name="kelas" required
+                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
+          <option value="" disabled <?= $form['kelas'] === '' ? 'selected' : '' ?>>Pilih kelas...</option>
+          <?php foreach ($daftarKelas as $opsiKelas): ?>
+            <option value="<?= e($opsiKelas) ?>" <?= $form['kelas'] === $opsiKelas ? 'selected' : '' ?>><?= e($opsiKelas) ?></option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">Username (untuk login) *</label>
         <input type="text" name="username" required maxlength="50" value="<?= e($form['username']) ?>"
                placeholder="cth: siswa03" pattern="[A-Za-z0-9_.]{3,50}"
                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-slate-600">Role *</label>
+        <select name="role" required
+                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
+          <?php foreach ($daftarRole as $nilaiRole => $labelRole): ?>
+            <option value="<?= e($nilaiRole) ?>" <?= $form['role'] === $nilaiRole ? 'selected' : '' ?>><?= e($labelRole) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <p class="mt-1 text-xs text-slate-400">Menentukan hak akses akun login yang dibuat.</p>
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">

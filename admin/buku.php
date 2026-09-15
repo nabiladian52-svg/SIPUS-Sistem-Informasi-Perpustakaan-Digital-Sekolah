@@ -18,6 +18,12 @@
  *    supaya mudah didiagnosis kalau request AJAX gagal.
  *  - Popup konfirmasi hapus sekarang memakai modal custom (senada dengan modal
  *    "Konfirmasi Peminjaman" di sisi siswa), menggantikan confirm() bawaan browser.
+ *  - FIX STATUS: kolom `status` di tabel buku bisa basi (tidak ikut terupdate saat
+ *    proses peminjaman/pengembalian di file lain), sehingga admin bisa menampilkan
+ *    "Tersedia" padahal siswa sudah melihat "Dipinjam". Sekarang status buku
+ *    (baik di tabel PHP, live search JS, maupun pengecekan sebelum hapus)
+ *    dihitung langsung dari `stok` (stok > 0 = Tersedia, stok <= 0 = Dipinjam),
+ *    supaya selalu sinkron dengan yang dilihat siswa.
  */
 declare(strict_types=1);
 
@@ -107,15 +113,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'ID buku tidak valid.';
         } else {
             try {
-                // Cek apakah buku sedang dipinjam (FK RESTRICT akan menolak jika ada transaksi)
-                $stmt = $pdo->prepare('SELECT status FROM buku WHERE id_buku = :id');
+                // FIX STATUS: sebelumnya baca kolom `status` (bisa basi/tidak sinkron).
+                // Sekarang cek langsung dari `stok`, sama seperti status yang ditampilkan
+                // di tabel & yang dilihat siswa: stok <= 0 dianggap sedang dipinjam.
+                $stmt = $pdo->prepare('SELECT stok FROM buku WHERE id_buku = :id');
                 $stmt->execute([':id' => $idHapus]);
-                $statusBuku = $stmt->fetchColumn();
+                $stokBuku = $stmt->fetchColumn();
 
-                if ($statusBuku === 'dipinjam') {
-                    $errors[] = 'Buku sedang dipinjam dan tidak dapat dihapus.';
-                } elseif ($statusBuku === false) {
+                if ($stokBuku === false) {
                     $errors[] = 'Buku tidak ditemukan.';
+                } elseif ((int) $stokBuku <= 0) {
+                    $errors[] = 'Buku sedang dipinjam dan tidak dapat dihapus.';
                 } else {
                     $stmt = $pdo->prepare('DELETE FROM buku WHERE id_buku = :id');
                     $stmt->execute([':id' => $idHapus]);
@@ -370,7 +378,7 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
               <td class="px-4 py-3"><?= e($buku['tahun_terbit'] ?? '—') ?></td>
               <td class="px-4 py-3"><?= e((string) ($buku['stok'] ?? '0')) ?></td>
               <td class="px-4 py-3">
-                <?php if ($buku['status'] === 'tersedia'): ?>
+                <?php if ((int) ($buku['stok'] ?? 0) > 0): ?>
                   <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Tersedia</span>
                 <?php else: ?>
                   <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Dipinjam</span>
@@ -432,6 +440,10 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
 
    FIX: error pada fetch() sekarang di-log ke console.error, tidak lagi
    dibungkam diam-diam, supaya kegagalan AJAX mudah didiagnosis.
+
+   FIX STATUS: badgeStatus() sekarang dihitung dari stok (bukan dari
+   field status di JSON), supaya hasil live search juga konsisten dengan
+   status yang dilihat siswa.
    ════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -444,8 +456,10 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
   var DEBOUNCE_MS = 350;
   var timer = null;
 
-  function badgeStatus(status) {
-    return status === 'tersedia'
+  function badgeStatus(stok) {
+    var jumlahStok = parseInt(stok, 10);
+    if (isNaN(jumlahStok)) jumlahStok = 0;
+    return jumlahStok > 0
       ? '<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Tersedia</span>'
       : '<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Dipinjam</span>';
   }
@@ -479,7 +493,7 @@ $judulForm = $form['id_buku'] > 0 ? 'Edit Buku' : 'Tambah Buku';
 
     var tdStatus = document.createElement('td');
     tdStatus.className = 'px-4 py-3';
-    tdStatus.innerHTML = badgeStatus(buku.status);
+    tdStatus.innerHTML = badgeStatus(buku.stok);
 
     // Kolom Aksi dibangun lewat DOM API (bukan innerHTML string) supaya
     // atribut data-judul aman menampung judul buku apa pun (mis. ada tanda kutip).

@@ -6,21 +6,29 @@
  */
 declare(strict_types=1);
 
-$pageTitle = 'Detail Buku — SIPUS';
-require __DIR__ . '/../includes/header.php';
+// 1. Wajib aktifkan session di baris paling atas sebelum cek $_SESSION
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// ── RBAC: hanya siswa ──
+require_once __DIR__ . '/../config/database.php';
+
+// 2. RBAC: hanya siswa (ditarik ke atas agar header() tidak error)
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'siswa') {
     header('Location: ../login.php');
     exit;
 }
 
+// Panggil koneksi database (sesuaikan path jika file db.php ada di tempat lain)
+// Jika koneksi sudah di-handle di file lain sebelum ini, pastikan $pdo tersedia.
 $pdo = db();
 
-// Validasi parameter GET: harus integer positif
+// 3. Validasi parameter GET & Database SEBELUM header.php dimuat
 $idBuku = filter_var($_GET['id'] ?? '', FILTER_VALIDATE_INT);
 if ($idBuku === false || $idBuku <= 0) {
     http_response_code(404);
+    $pageTitle = 'Buku Tidak Ditemukan — SIPUS';
+    require __DIR__ . '/../includes/header.php';
     echo '<div class="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">'
        . '<p class="text-lg font-semibold">Buku tidak ditemukan</p>'
        . '<a href="daftar_buku.php" class="mt-3 inline-block text-sm font-medium text-indigo-600 hover:underline">&larr; Kembali ke daftar buku</a>'
@@ -29,13 +37,14 @@ if ($idBuku === false || $idBuku <= 0) {
     exit;
 }
 
-// ── Ambil data buku via prepared statement ──
 $stmt = $pdo->prepare('SELECT * FROM buku WHERE id_buku = :ib LIMIT 1');
 $stmt->execute([':ib' => $idBuku]);
 $buku = $stmt->fetch();
 
 if (!$buku) {
     http_response_code(404);
+    $pageTitle = 'Buku Tidak Ditemukan — SIPUS';
+    require __DIR__ . '/../includes/header.php';
     echo '<div class="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">'
        . '<p class="text-lg font-semibold">Buku tidak ditemukan</p>'
        . '<a href="daftar_buku.php" class="mt-3 inline-block text-sm font-medium text-indigo-600 hover:underline">&larr; Kembali ke daftar buku</a>'
@@ -43,6 +52,10 @@ if (!$buku) {
     require __DIR__ . '/../includes/footer.php';
     exit;
 }
+
+// 4. Jika buku valid, baru muat header normal halaman
+$pageTitle = 'Detail Buku — SIPUS';
+require __DIR__ . '/../includes/header.php';
 
 // ── Ambil id_anggota siswa yang login ──
 $stmt = $pdo->prepare('SELECT id_anggota FROM anggota WHERE username = :u LIMIT 1');
@@ -56,7 +69,7 @@ $idAnggota = (int) $idAnggota;
 
 // ── Cek apakah siswa sudah meminjam buku ini (belum dikembalikan) ──
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM peminjaman
-                       WHERE id_anggota = :ia AND id_buku = :ib AND status = "dipinjam"');
+                        WHERE id_anggota = :ia AND id_buku = :ib AND status = "dipinjam"');
 $stmt->execute([':ia' => $idAnggota, ':ib' => $idBuku]);
 $sudahPinjam = ((int) $stmt->fetchColumn()) > 0;
 
@@ -82,25 +95,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'pinjam'
         try {
             $pdo->beginTransaction();
 
-            // Kunci baris buku & verifikasi ulang status (cegah race condition)
             $stmt = $pdo->prepare('SELECT status FROM buku WHERE id_buku = :ib FOR UPDATE');
             $stmt->execute([':ib' => $idBuku]);
             if ($stmt->fetchColumn() !== 'tersedia') {
                 throw new RuntimeException('Maaf, buku ini baru saja dipinjam siswa lain.');
             }
 
-            // 1. Insert transaksi
             $stmt = $pdo->prepare('INSERT INTO peminjaman (id_anggota, id_buku, tanggal_pinjam, status)
-                                   VALUES (:ia, :ib, CURDATE(), "dipinjam")');
+                                    VALUES (:ia, :ib, CURDATE(), "dipinjam")');
             $stmt->execute([':ia' => $idAnggota, ':ib' => $idBuku]);
 
-            // 2. Update status buku
             $stmt = $pdo->prepare('UPDATE buku SET status = "dipinjam" WHERE id_buku = :ib');
             $stmt->execute([':ib' => $idBuku]);
 
             $pdo->commit();
 
-            // Refresh state halaman
             $buku['status'] = 'dipinjam';
             $sudahPinjam    = true;
             $totalDipinjam++;
