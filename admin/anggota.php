@@ -215,6 +215,9 @@ $stmt = $pdo->prepare('SELECT ag.*,
                        LIMIT 300');
 $stmt->execute();
 $daftarAnggota = $stmt->fetchAll();
+
+// Jumlah anggota per halaman (pagination dijalankan di JS, mengikuti hasil pencarian live)
+$perPage = 10;
 ?>
 
 <style>
@@ -447,15 +450,32 @@ $daftarAnggota = $stmt->fetchAll();
         </select>
         <p class="mt-1 text-xs text-slate-400">Menentukan hak akses akun login yang dibuat.</p>
       </div>
+
+      <!-- ══════════════════ FITUR BARU: Hint & toggle lihat password ══════════════════ -->
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-600">
           Password <?= $form['id_anggota'] > 0 ? '(kosongkan jika tidak diubah)' : '*' ?>
         </label>
-        <input type="password" name="password" minlength="6" maxlength="100"
-               <?= $form['id_anggota'] > 0 ? '' : 'required' ?> autocomplete="new-password"
-               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
-        <p class="mt-1 text-xs text-slate-400">Disimpan ter-hash dengan Bcrypt.</p>
+        <div class="relative">
+          <input type="password" name="password" id="inputPassword" minlength="6" maxlength="100"
+                 <?= $form['id_anggota'] > 0 ? '' : 'required' ?> autocomplete="new-password"
+                 class="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm transition focus:border-[#5252ea] focus:ring-2 focus:ring-indigo-100 outline-none">
+          <button type="button" id="togglePassword" tabindex="-1"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <svg id="iconEyeOpen" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="iconEyeClosed" xmlns="http://www.w3.org/2000/svg" class="hidden h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.62 21.62 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <p id="hintPassword" class="mt-1 text-xs text-slate-400">
+          <?= $form['id_anggota'] > 0 ? 'Kosongkan jika tidak ingin mengubah password.' : 'Disimpan ter-hash dengan Bcrypt. Minimal 6 karakter.' ?>
+        </p>
       </div>
+      <!-- ══════════════════ akhir fitur baru ══════════════════ -->
 
       <div class="flex gap-2 pt-2">
         <button type="submit" id="btnSubmit"
@@ -489,8 +509,9 @@ $daftarAnggota = $stmt->fetchAll();
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100" id="tabelBody">
-          <?php foreach ($daftarAnggota as $ag): ?>
-            <tr class="row-anggota hover:bg-slate-50"
+          <?php foreach ($daftarAnggota as $i => $ag): ?>
+            <tr class="row-anggota hover:bg-slate-50 <?= $i >= $perPage ? 'hidden' : '' ?>"
+                data-idx="<?= $i ?>"
                 data-search="<?= e(mb_strtolower($ag['nama'] . ' ' . $ag['nomor_anggota'] . ' ' . $ag['kelas'] . ' ' . $ag['username'])) ?>"
                 data-nama="<?= e($ag['nama']) ?>">
               <td class="px-4 py-3 font-mono text-xs"><?= e($ag['nomor_anggota']) ?></td>
@@ -523,8 +544,9 @@ $daftarAnggota = $stmt->fetchAll();
 
     <!-- Tampilan kartu: di bawah md (mobile) -->
     <div class="divide-y divide-slate-100 md:hidden" id="cardBody">
-      <?php foreach ($daftarAnggota as $ag): ?>
-        <div class="row-anggota p-4"
+      <?php foreach ($daftarAnggota as $i => $ag): ?>
+        <div class="row-anggota p-4 <?= $i >= $perPage ? 'hidden' : '' ?>"
+             data-idx="<?= $i ?>"
              data-search="<?= e(mb_strtolower($ag['nama'] . ' ' . $ag['nomor_anggota'] . ' ' . $ag['kelas'] . ' ' . $ag['username'])) ?>"
              data-nama="<?= e($ag['nama']) ?>">
           <div class="flex items-start justify-between gap-3">
@@ -559,6 +581,9 @@ $daftarAnggota = $stmt->fetchAll();
   </div>
 </div>
 
+<!-- Pagination (dirender oleh JS, mengikuti hasil pencarian live) -->
+<div id="paginationAnggota"></div>
+
 <!-- ══════════════════ Popup konfirmasi hapus anggota (custom, menggantikan confirm() bawaan) ══════════════════ -->
 <div id="hapusOverlay" class="hapus-overlay" role="dialog" aria-modal="true" aria-labelledby="hapusJudul">
   <div class="hapus-card">
@@ -590,9 +615,24 @@ $daftarAnggota = $stmt->fetchAll();
   const searchCountEl = document.getElementById('searchCount');
   const emptyState    = document.getElementById('emptyState');
   const noticeBox     = document.getElementById('noticeBox');
+  const paginasi      = document.getElementById('paginationAnggota');
 
   // Kumpulkan semua baris (tabel desktop + kartu mobile tetap disinkronkan sekaligus)
   const rows = Array.from(document.querySelectorAll('.row-anggota'));
+
+  // ── Pagination (client-side, mengikuti hasil pencarian) ──
+  const PER_PAGE = <?= (int) $perPage ?>;
+  let halaman    = 1;
+  let kataAktif  = searchInput.value;
+
+  // Satu entri per anggota (baris tabel & kartu mobile berbagi data-idx yang sama)
+  const daftar = [];
+  const sudahAda = new Set();
+  rows.forEach((r) => {
+    if (sudahAda.has(r.dataset.idx)) return;
+    sudahAda.add(r.dataset.idx);
+    daftar.push({ idx: r.dataset.idx, search: r.dataset.search });
+  });
 
   // Debounce kecil supaya pencarian terasa instan tapi tidak "gugup" saat mengetik cepat
   function debounce(fn, delay) {
@@ -600,19 +640,95 @@ $daftarAnggota = $stmt->fetchAll();
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
   }
 
-  function applyFilter(keyword) {
+  // Render kontrol halaman (gaya sama dengan Data Buku & Daftar Buku siswa)
+  function renderPagination(total, totalPages) {
+    paginasi.innerHTML = '';
+    if (total <= 0 || totalPages <= 1) return;
+
+    const dari = (halaman - 1) * PER_PAGE + 1;
+    const ke   = Math.min(halaman * PER_PAGE, total);
+
+    const nav = document.createElement('nav');
+    nav.className = 'mt-8 flex flex-col items-center gap-3';
+    nav.setAttribute('aria-label', 'Navigasi halaman');
+
+    const row = document.createElement('div');
+    row.className = 'flex flex-wrap items-center justify-center gap-1.5';
+
+    function tombolLink(label, p, angka) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-page', p);
+      b.className = 'rounded-lg border border-slate-300 bg-white ' + (angka ? 'px-3.5' : 'px-3') + ' py-2 text-sm font-medium text-slate-600 hover:bg-slate-50';
+      b.textContent = label;
+      return b;
+    }
+    function tombolMati(label) {
+      const s = document.createElement('span');
+      s.className = 'cursor-not-allowed rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-sm font-medium text-slate-300';
+      s.textContent = label;
+      return s;
+    }
+
+    row.appendChild(halaman > 1 ? tombolLink('\u00ab Sebelumnya', halaman - 1, false) : tombolMati('\u00ab Sebelumnya'));
+
+    let terakhirTitik = false;
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || Math.abs(i - halaman) <= 1) {
+        terakhirTitik = false;
+        if (i === halaman) {
+          const aktif = document.createElement('span');
+          aktif.className = 'rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm';
+          aktif.textContent = i;
+          row.appendChild(aktif);
+        } else {
+          row.appendChild(tombolLink(String(i), i, true));
+        }
+      } else if (!terakhirTitik) {
+        terakhirTitik = true;
+        const titik = document.createElement('span');
+        titik.className = 'px-2 text-sm text-slate-500';
+        titik.textContent = '\u2026';
+        row.appendChild(titik);
+      }
+    }
+
+    row.appendChild(halaman < totalPages ? tombolLink('Berikutnya \u00bb', halaman + 1, false) : tombolMati('Berikutnya \u00bb'));
+
+    const info = document.createElement('p');
+    info.className = 'text-xs text-slate-600';
+    info.textContent = 'Menampilkan ' + dari + '\u2013' + ke + ' dari ' + total + ' anggota';
+
+    nav.appendChild(row);
+    nav.appendChild(info);
+    paginasi.appendChild(nav);
+  }
+
+  // tetapHalaman = true dipakai saat pindah halaman; pencarian baru selalu kembali ke halaman 1
+  function applyFilter(keyword, tetapHalaman) {
     const kw = keyword.trim().toLowerCase();
-    let visibleCount = 0;
+    kataAktif = keyword;
+    if (!tetapHalaman) halaman = 1;
+
+    const cocok = daftar
+      .filter((d) => kw === '' || d.search.includes(kw))
+      .map((d) => d.idx);
+
+    const total      = cocok.length;
+    const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+    if (halaman > totalPages) halaman = totalPages;
+
+    const mulai  = (halaman - 1) * PER_PAGE;
+    const tampil = new Set(cocok.slice(mulai, mulai + PER_PAGE));
 
     rows.forEach((row) => {
-      const match = kw === '' || row.dataset.search.includes(kw);
-      row.classList.toggle('hidden', !match);
-      if (match) visibleCount++;
+      row.classList.toggle('hidden', !tampil.has(row.dataset.idx));
     });
 
-    searchCountEl.textContent = visibleCount;
-    emptyState.classList.toggle('hidden', visibleCount !== 0);
+    searchCountEl.textContent = total;
+    emptyState.classList.toggle('hidden', total !== 0);
     resetBtn.classList.toggle('hidden', kw === '');
+    renderPagination(total, totalPages);
   }
 
   function buildSuggestions(keyword) {
@@ -655,6 +771,18 @@ $daftarAnggota = $stmt->fetchAll();
     }
   });
 
+  // Klik nomor halaman / Sebelumnya / Berikutnya
+  paginasi.addEventListener('click', (e) => {
+    const tombol = e.target.closest('button[data-page]');
+    if (!tombol) return;
+    halaman = parseInt(tombol.getAttribute('data-page'), 10) || 1;
+    applyFilter(kataAktif, true);
+
+    // Gulir ke atas tabel supaya user langsung melihat data halaman baru.
+    const kartu = document.getElementById('tabelBody').closest('.rounded-2xl');
+    if (kartu && kartu.scrollIntoView) kartu.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   // Tutup dropdown saat klik di luar, atau saat Escape ditekan
   document.addEventListener('click', (e) => {
     if (!document.getElementById('searchWrap').contains(e.target)) {
@@ -672,8 +800,8 @@ $daftarAnggota = $stmt->fetchAll();
     searchInput.focus();
   });
 
-  // Filter awal jika ada ?q= dari server (fallback progressive enhancement)
-  if (searchInput.value.trim() !== '') applyFilter(searchInput.value);
+  // Render awal (memakai ?q= dari server bila ada, sekaligus menampilkan halaman 1 + pagination)
+  applyFilter(searchInput.value);
 
   // Notifikasi sukses otomatis memudar setelah beberapa detik
   if (noticeBox && !noticeBox.classList.contains('hidden')) {
@@ -732,6 +860,44 @@ $daftarAnggota = $stmt->fetchAll();
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && hapusOverlay.classList.contains('is-open')) tutupHapusPopup();
   });
+
+  // ══════════════════ FITUR BARU: Hint & toggle lihat password ══════════════════
+  const inputPassword  = document.getElementById('inputPassword');
+  const hintPassword   = document.getElementById('hintPassword');
+  const togglePassword = document.getElementById('togglePassword');
+  const iconEyeOpen    = document.getElementById('iconEyeOpen');
+  const iconEyeClosed  = document.getElementById('iconEyeClosed');
+  const isEditMode     = <?= $form['id_anggota'] > 0 ? 'true' : 'false' ?>;
+
+  if (inputPassword && hintPassword) {
+    inputPassword.addEventListener('input', () => {
+      const len = inputPassword.value.length;
+      if (len === 0) {
+        hintPassword.textContent = isEditMode
+          ? 'Kosongkan jika tidak ingin mengubah password.'
+          : 'Disimpan ter-hash dengan Bcrypt. Minimal 6 karakter.';
+        hintPassword.className = 'mt-1 text-xs text-slate-400';
+      } else if (len < 6) {
+        hintPassword.textContent = `Kurang ${6 - len} karakter lagi (minimal 6).`;
+        hintPassword.className = 'mt-1 text-xs text-rose-500';
+      } else if (len > 100) {
+        hintPassword.textContent = 'Password melebihi batas maksimal 100 karakter.';
+        hintPassword.className = 'mt-1 text-xs text-rose-500';
+      } else {
+        hintPassword.textContent = 'Password valid. Akan disimpan ter-hash dengan Bcrypt.';
+        hintPassword.className = 'mt-1 text-xs text-emerald-500';
+      }
+    });
+  }
+
+  if (togglePassword && inputPassword) {
+    togglePassword.addEventListener('click', () => {
+      const tampil = inputPassword.type === 'text';
+      inputPassword.type = tampil ? 'password' : 'text';
+      iconEyeOpen.classList.toggle('hidden', !tampil);
+      iconEyeClosed.classList.toggle('hidden', tampil);
+    });
+  }
 })();
 </script>
 

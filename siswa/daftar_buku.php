@@ -101,25 +101,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'pinjam'
     }
 }
 
-// ─── Query daftar buku + pencarian ───
+// ─── Query daftar buku + pencarian + pagination ───
 $keyword = trim((string) ($_GET['q'] ?? ''));
+$perPage = 9; // jumlah buku per halaman
+$page    = max(1, (int) ($_GET['page'] ?? 1));
+
+$where  = '';
+$params = [];
 if ($keyword !== '') {
     $safeKeyword = addcslashes($keyword, '%_\\');
-    $stmt = $pdo->prepare('SELECT * FROM buku
-                           WHERE judul LIKE :kw1 OR penulis LIKE :kw2 OR penerbit LIKE :kw3 OR nomor_buku LIKE :kw4
-                           ORDER BY stok > 0 DESC, judul ASC
-                           LIMIT 100');
-    $stmt->execute([
+    $where  = 'WHERE judul LIKE :kw1 OR penulis LIKE :kw2 OR penerbit LIKE :kw3 OR nomor_buku LIKE :kw4';
+    $params = [
         ':kw1' => '%' . $safeKeyword . '%',
         ':kw2' => '%' . $safeKeyword . '%',
         ':kw3' => '%' . $safeKeyword . '%',
         ':kw4' => '%' . $safeKeyword . '%',
-    ]);
-} else {
-    $stmt = $pdo->prepare('SELECT * FROM buku ORDER BY stok > 0 DESC, judul ASC LIMIT 100');
-    $stmt->execute();
+    ];
 }
+
+// Hitung total data
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM buku $where");
+$stmt->execute($params);
+$totalBuku  = (int) $stmt->fetchColumn();
+$totalPages = max(1, (int) ceil($totalBuku / $perPage));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = ($page - 1) * $perPage;
+
+// Ambil data untuk halaman aktif (angka sudah di-cast int, aman)
+$stmt = $pdo->prepare("SELECT * FROM buku $where
+                       ORDER BY stok > 0 DESC, judul ASC
+                       LIMIT $perPage OFFSET $offset");
+$stmt->execute($params);
 $daftarBuku = $stmt->fetchAll();
+
+// Helper URL pagination (mempertahankan kata kunci pencarian)
+$urlHalaman = function (int $p) use ($keyword): string {
+    $query = ['page' => $p];
+    if ($keyword !== '') {
+        $query['q'] = $keyword;
+    }
+    return 'daftar_buku.php?' . http_build_query($query);
+};
 ?>
 
 <style>
@@ -403,7 +427,7 @@ $daftarBuku = $stmt->fetchAll();
            class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-medium text-slate-600 hover:bg-slate-50">Detail</a>
 
         <?php if ($stokBuku > 0): ?>
-          <form method="post" action="daftar_buku.php" class="form-pinjam" data-judul="<?= e($buku['judul']) ?>">
+          <form method="post" action="<?= e($urlHalaman($page)) ?>" class="form-pinjam" data-judul="<?= e($buku['judul']) ?>">
             <input type="hidden" name="aksi" value="pinjam">
             <input type="hidden" name="id_buku" value="<?= (int) $buku['id_buku'] ?>">
             <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Pinjam</button>
@@ -415,6 +439,54 @@ $daftarBuku = $stmt->fetchAll();
     </div>
   <?php endforeach; ?>
 </div>
+
+<?php if ($totalBuku > 0 && $totalPages > 1): ?>
+  <?php
+    $dari = $offset + 1;
+    $ke   = min($offset + $perPage, $totalBuku);
+
+    // Daftar nomor halaman dengan "…" bila terlalu banyak
+    $nomor = [];
+    for ($i = 1; $i <= $totalPages; $i++) {
+        if ($i === 1 || $i === $totalPages || abs($i - $page) <= 1) {
+            $nomor[] = $i;
+        } elseif (end($nomor) !== '...') {
+            $nomor[] = '...';
+        }
+    }
+  ?>
+  <nav class="mt-8 flex flex-col items-center gap-3" aria-label="Navigasi halaman">
+    <div class="flex flex-wrap items-center justify-center gap-1.5">
+
+      <?php if ($page > 1): ?>
+        <a href="<?= e($urlHalaman($page - 1)) ?>"
+           class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">&laquo; Sebelumnya</a>
+      <?php else: ?>
+        <span class="cursor-not-allowed rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-sm font-medium text-slate-300">&laquo; Sebelumnya</span>
+      <?php endif; ?>
+
+      <?php foreach ($nomor as $n): ?>
+        <?php if ($n === '...'): ?>
+          <span class="px-2 text-sm text-slate-500">&hellip;</span>
+        <?php elseif ($n === $page): ?>
+          <span class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm"><?= $n ?></span>
+        <?php else: ?>
+          <a href="<?= e($urlHalaman($n)) ?>"
+             class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"><?= $n ?></a>
+        <?php endif; ?>
+      <?php endforeach; ?>
+
+      <?php if ($page < $totalPages): ?>
+        <a href="<?= e($urlHalaman($page + 1)) ?>"
+           class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Berikutnya &raquo;</a>
+      <?php else: ?>
+        <span class="cursor-not-allowed rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-sm font-medium text-slate-300">Berikutnya &raquo;</span>
+      <?php endif; ?>
+
+    </div>
+    <p class="text-xs text-slate-600">Menampilkan <?= $dari ?>–<?= $ke ?> dari <?= $totalBuku ?> buku</p>
+  </nav>
+<?php endif; ?>
 
 <!-- ══════════════════ Popup konfirmasi pinjam (custom, menggantikan confirm() bawaan) ══════════════════ -->
 <div id="pinjamOverlay" class="pinjam-overlay" role="dialog" aria-modal="true" aria-labelledby="pinjamJudul">

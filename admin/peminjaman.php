@@ -63,13 +63,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['aksi'] ?? '') === 'kembali
     }
 }
 
-// ─── Query daftar transaksi (dengan filter status & pencarian) ───
+// ─── Query daftar transaksi (dengan filter status & pencarian + pagination) ───
 $filterStatus = $_GET['status'] ?? 'semua';
 if (!in_array($filterStatus, ['semua', 'dipinjam', 'dikembalikan'], true)) {
     $filterStatus = 'semua';
 }
 
 $keyword = trim((string) ($_GET['q'] ?? ''));
+$perPage = 8; // jumlah transaksi per halaman
+$page    = max(1, (int) ($_GET['page'] ?? 1));
 $where   = [];
 $params  = [];
 
@@ -86,21 +88,43 @@ if ($keyword !== '') {
     $params[':kw4'] = $safeKeyword;
 }
 
+$fromSql = ' FROM peminjaman p
+             JOIN anggota a ON a.id_anggota = p.id_anggota
+             JOIN buku    b ON b.id_buku    = p.id_buku';
+$whereSql = !empty($where) ? ' WHERE ' . implode(' AND ', $where) : '';
+
+// Hitung total data
+$stmt = $pdo->prepare('SELECT COUNT(*)' . $fromSql . $whereSql);
+$stmt->execute($params);
+$totalTransaksi = (int) $stmt->fetchColumn();
+$totalPages     = max(1, (int) ceil($totalTransaksi / $perPage));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = ($page - 1) * $perPage;
+
+// Ambil data untuk halaman aktif (angka sudah di-cast int, aman)
 $sql = 'SELECT p.id_peminjaman, a.nomor_anggota, a.nama, a.kelas,
                b.nomor_buku, b.judul,
-               p.tanggal_pinjam, p.tanggal_kembali, p.status
-        FROM peminjaman p
-        JOIN anggota a ON a.id_anggota = p.id_anggota
-        JOIN buku    b ON b.id_buku    = p.id_buku';
-
-if (!empty($where)) {
-    $sql .= ' WHERE ' . implode(' AND ', $where);
-}
-$sql .= ' ORDER BY p.id_peminjaman DESC LIMIT 200';
+               p.tanggal_pinjam, p.tanggal_kembali, p.status'
+     . $fromSql . $whereSql
+     . " ORDER BY p.id_peminjaman DESC LIMIT $perPage OFFSET $offset";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $transaksi = $stmt->fetchAll();
+
+// Helper URL pagination (mempertahankan kata kunci & filter status)
+$urlHalaman = function (int $p) use ($keyword, $filterStatus): string {
+    $query = ['page' => $p];
+    if ($keyword !== '') {
+        $query['q'] = $keyword;
+    }
+    if ($filterStatus !== 'semua') {
+        $query['status'] = $filterStatus;
+    }
+    return 'peminjaman.php?' . http_build_query($query);
+};
 ?>
 
 <style>
@@ -296,7 +320,7 @@ $transaksi = $stmt->fetchAll();
 <!-- Tabel transaksi -->
 <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
   <div class="border-b border-slate-100 px-5 py-4">
-    <h2 class="font-semibold">Daftar Transaksi <span class="text-sm font-normal text-slate-400">(<?= count($transaksi) ?>)</span></h2>
+    <h2 class="font-semibold">Daftar Transaksi <span class="text-sm font-normal text-slate-400">(<?= $totalTransaksi ?>)</span></h2>
   </div>
   <div class="overflow-x-auto tabel-scroll-wrapper">
     <table class="w-full text-left text-sm">
@@ -337,7 +361,7 @@ $transaksi = $stmt->fetchAll();
             </td>
             <td class="px-4 py-3 text-right">
               <?php if ($trx['status'] === 'dipinjam'): ?>
-                <form method="post" action="peminjaman.php" class="form-kembalikan" data-judul="<?= e($trx['judul']) ?>">
+                <form method="post" action="<?= e($urlHalaman($page)) ?>" class="form-kembalikan" data-judul="<?= e($trx['judul']) ?>">
                   <input type="hidden" name="aksi" value="kembalikan">
                   <input type="hidden" name="id_peminjaman" value="<?= (int) $trx['id_peminjaman'] ?>">
                   <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
@@ -354,6 +378,54 @@ $transaksi = $stmt->fetchAll();
     </table>
   </div>
 </div>
+
+<?php if ($totalTransaksi > 0 && $totalPages > 1): ?>
+  <?php
+    $dari = $offset + 1;
+    $ke   = min($offset + $perPage, $totalTransaksi);
+
+    // Daftar nomor halaman dengan "…" bila terlalu banyak
+    $nomor = [];
+    for ($i = 1; $i <= $totalPages; $i++) {
+        if ($i === 1 || $i === $totalPages || abs($i - $page) <= 1) {
+            $nomor[] = $i;
+        } elseif (end($nomor) !== '...') {
+            $nomor[] = '...';
+        }
+    }
+  ?>
+  <nav class="mt-8 flex flex-col items-center gap-3" aria-label="Navigasi halaman">
+    <div class="flex flex-wrap items-center justify-center gap-1.5">
+
+      <?php if ($page > 1): ?>
+        <a href="<?= e($urlHalaman($page - 1)) ?>"
+           class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">&laquo; Sebelumnya</a>
+      <?php else: ?>
+        <span class="cursor-not-allowed rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-sm font-medium text-slate-300">&laquo; Sebelumnya</span>
+      <?php endif; ?>
+
+      <?php foreach ($nomor as $n): ?>
+        <?php if ($n === '...'): ?>
+          <span class="px-2 text-sm text-slate-500">&hellip;</span>
+        <?php elseif ($n === $page): ?>
+          <span class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm"><?= $n ?></span>
+        <?php else: ?>
+          <a href="<?= e($urlHalaman($n)) ?>"
+             class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"><?= $n ?></a>
+        <?php endif; ?>
+      <?php endforeach; ?>
+
+      <?php if ($page < $totalPages): ?>
+        <a href="<?= e($urlHalaman($page + 1)) ?>"
+           class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Berikutnya &raquo;</a>
+      <?php else: ?>
+        <span class="cursor-not-allowed rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-sm font-medium text-slate-300">Berikutnya &raquo;</span>
+      <?php endif; ?>
+
+    </div>
+    <p class="text-xs text-slate-600">Menampilkan <?= $dari ?>–<?= $ke ?> dari <?= $totalTransaksi ?> transaksi</p>
+  </nav>
+<?php endif; ?>
 
 <!-- ══════════════════ Popup konfirmasi kembalikan (custom, menggantikan confirm() bawaan) ══════════════════ -->
 <div id="kembaliOverlay" class="kembali-overlay" role="dialog" aria-modal="true" aria-labelledby="kembaliJudul">
