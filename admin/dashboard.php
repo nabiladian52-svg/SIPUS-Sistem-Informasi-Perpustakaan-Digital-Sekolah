@@ -62,6 +62,7 @@ $terbaru = sipusAmbilTransaksiTerbaru($pdo);
 if (isset($_GET['ajax'])) {
     ob_end_clean();
     header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
     echo json_encode([
         'stat'    => $stat,
         'terbaru' => $terbaru,
@@ -138,14 +139,14 @@ function sipusInisial(string $nama): string
   .stat-card.accent-rose::before    { background: #e11d48; }
   .stat-card.accent-slate::before   { background: #475569; }
 
-  Avatar inisial anggota pada tabel transaksi
+  /* Avatar inisial anggota pada tabel transaksi */
   .avatar-inisial {
     display: grid;
     place-items: center;
     width: 2.25rem;
     height: 2.25rem;
     border-radius: 9999px;
-    background: #fff;
+    background: #e0e7ff;
     color: #4338ca;
     font-weight: 700;
     font-size: 0.8rem;
@@ -181,7 +182,7 @@ function sipusInisial(string $nama): string
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      color: #fff;
+      color: #64748b;
       flex-shrink: 0;
     }
     .tabel-transaksi td.td-anggota { justify-content: flex-start; }
@@ -354,7 +355,7 @@ function sipusInisial(string $nama): string
         ? '<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Dipinjam</span>'
         : '<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Dikembalikan</span>';
 
-      // Kolom anggota: avatar inisial + nama + nomor anggota (dibuat lewat textContent, aman untuk data dari user).
+      // Kolom anggota: avatar inisial + nama + nomor anggota (diisi lewat textContent, aman untuk data dari user).
       var tdAnggota = document.createElement('td');
       tdAnggota.className = 'td-anggota px-5 py-3';
       tdAnggota.innerHTML =
@@ -397,8 +398,14 @@ function sipusInisial(string $nama): string
 
   // Ambil data terbaru dari server (mode AJAX file ini sendiri) lalu perbarui tampilan.
   function ambilDataTerbaru() {
-    fetch(window.location.pathname + '?ajax=1', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function (res) { return res.json(); })
+    fetch(window.location.pathname + '?ajax=1', {
+      cache: 'no-store',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
       .then(function (data) {
         STAT_KEYS.forEach(function (key) {
           var elemenAngka = document.getElementById('stat-' + key);
@@ -419,8 +426,13 @@ function sipusInisial(string $nama): string
 
         var jamSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         document.getElementById('last-updated').textContent = '· diperbarui ' + jamSekarang;
+        document.getElementById('live-status').textContent = 'Live';
       })
-  
+      .catch(function () {
+        // Kalau server/koneksi bermasalah, tampilkan status dan coba lagi di polling berikutnya.
+        document.getElementById('live-status').textContent = 'Terputus';
+      });
+  }
 
   // Jalankan animasi count-up awal begitu halaman siap.
   document.addEventListener('DOMContentLoaded', function () {
